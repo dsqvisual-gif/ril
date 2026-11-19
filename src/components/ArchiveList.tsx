@@ -6,6 +6,7 @@ import { ru } from "date-fns/locale";
 import { useRouter } from "next/navigation";
 import { removeTask, restoreTask, type ArchivedTask } from "@/lib/actions/tasks";
 import { fromDateKey, todayKey } from "@/lib/dates";
+import { errorText, unwrap, type ActionResult } from "@/lib/action-result";
 import styles from "./ArchiveList.module.css";
 
 type Props = {
@@ -17,14 +18,14 @@ export function ArchiveList({ tasks }: Props) {
   const [busyId, setBusyId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  async function run(id: string, action: () => Promise<void>) {
+  async function run(id: string, action: () => Promise<ActionResult<void>>) {
     setBusyId(id);
     setError(null);
     try {
-      await action();
+      unwrap(await action());
       router.refresh();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Не получилось");
+      setError(errorText(err, "Не получилось"));
     } finally {
       setBusyId(null);
     }

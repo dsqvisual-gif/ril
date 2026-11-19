@@ -5,6 +5,7 @@ import { format } from "date-fns";
 import { ru } from "date-fns/locale";
 import { applyVoicePlan, interpretVoice, type VoicePlan } from "@/lib/actions/voice";
 import type { TaskDTO } from "@/lib/actions/tasks";
+import { errorText, unwrap } from "@/lib/action-result";
 import { fromDateKey, todayKey } from "@/lib/dates";
 import styles from "./VoiceMic.module.css";
 
@@ -82,12 +83,12 @@ export function VoiceMic({ focusDate, onApplied }: Props) {
     setError(null);
     setPlan(null);
     try {
-      const next = await interpretVoice(text, todayKey(), focusDate);
+      const next = unwrap(await interpretVoice(text, todayKey(), focusDate));
       setPlan(next);
       setPhase("review");
     } catch (err) {
       setPhase("idle");
-      setError(err instanceof Error ? err.message : "Не удалось разобрать фразу");
+      setError(errorText(err, "Не удалось разобрать фразу"));
     }
   }
 
@@ -169,7 +170,7 @@ export function VoiceMic({ focusDate, onApplied }: Props) {
     setApplying(true);
     setError(null);
     try {
-      const result = await applyVoicePlan(plan);
+      const result = unwrap(await applyVoicePlan(plan));
       onApplied(result);
       const parts: string[] = [];
       if (result.created.length > 0) parts.push(`Добавлено: ${result.created.length}`);
@@ -179,7 +180,7 @@ export function VoiceMic({ focusDate, onApplied }: Props) {
       setPlan(null);
       setDraft("");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Не удалось сохранить");
+      setError(errorText(err, "Не удалось сохранить"));
     } finally {
       setApplying(false);
     }

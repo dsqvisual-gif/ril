@@ -23,6 +23,7 @@ import {
   type TaskDTO,
 } from "@/lib/actions/tasks";
 import type { FriendOption } from "@/lib/actions/friends";
+import { errorText, unwrap, type ActionResult } from "@/lib/action-result";
 import {
   formatMonthTitle,
   getMonthGrid,
@@ -142,7 +143,7 @@ export function PlannerApp({ initialTasks, initialDate, friends }: Props) {
   }
 
   async function handleCreate(input: CreateTaskInput) {
-    const task = await createTask(input);
+    const task = unwrap(await createTask(input));
     setTasks((prev) => [...prev, task]);
   }
 
@@ -152,7 +153,7 @@ export function PlannerApp({ initialTasks, initialDate, friends }: Props) {
     const wasDone = tasks.some((task) => task.id === id && task.done);
     setBusyId(id);
     try {
-      const result = await toggleTask(id);
+      const result = unwrap(await toggleTask(id));
       setTasks((prev) => prev.map((t) => (t.id === id ? result.task : t)));
       if (!wasDone && result.task.done) {
         setCheerKey((key) => key + 1);
@@ -166,23 +167,27 @@ export function PlannerApp({ initialTasks, initialDate, friends }: Props) {
         );
         setToast(first?.title ?? "Достижение разблокировано");
       }
-    } catch {
-      setToast("Не удалось обновить дело");
+    } catch (err) {
+      setToast(errorText(err, "Не удалось обновить дело"));
     } finally {
       setBusyId(null);
     }
   }
 
-  async function answer(id: string, action: () => Promise<void>, drop: boolean) {
+  async function answer(
+    id: string,
+    action: () => Promise<ActionResult<void>>,
+    drop: boolean,
+  ) {
     dismissed.current.add(id);
     setBusyId(id);
     try {
-      await action();
+      unwrap(await action());
       if (drop) setTasks((prev) => prev.filter((task) => task.id !== id));
       setPrompts((prev) => prev.filter((task) => task.id !== id));
-    } catch {
+    } catch (err) {
       dismissed.current.delete(id);
-      setToast("Не удалось обновить дело");
+      setToast(errorText(err, "Не удалось обновить дело"));
     } finally {
       setBusyId(null);
     }
@@ -191,11 +196,11 @@ export function PlannerApp({ initialTasks, initialDate, friends }: Props) {
   async function handleDelete(id: string) {
     setBusyId(id);
     try {
-      await deleteTask(id);
+      unwrap(await deleteTask(id));
       setTasks((prev) => prev.filter((t) => t.id !== id));
       setPrompts((prev) => prev.filter((t) => t.id !== id));
-    } catch {
-      setToast("Не удалось удалить дело");
+    } catch (err) {
+      setToast(errorText(err, "Не удалось удалить дело"));
     } finally {
       setBusyId(null);
     }

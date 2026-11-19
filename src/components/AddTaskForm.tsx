@@ -6,6 +6,7 @@ import styles from "./AddTaskForm.module.css";
 import type { CreateTaskInput } from "@/lib/actions/tasks";
 import type { FriendOption } from "@/lib/actions/friends";
 import { TASK_TITLE_MAX } from "@/lib/validation";
+import { errorText } from "@/lib/action-result";
 
 type Props = {
   date: string;
@@ -52,7 +53,7 @@ export function AddTaskForm({ date, friends, onCreate }: Props) {
       setFriendIds([]);
       setOpen(false);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Не удалось сохранить");
+      setError(errorText(err, "Не удалось сохранить"));
     } finally {
       setPending(false);
     }
