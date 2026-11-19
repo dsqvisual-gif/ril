@@ -6,6 +6,8 @@ import { prisma } from "@/lib/prisma";
 import { signIn } from "@/lib/auth";
 import { normalizeUsername, usernameError } from "@/lib/username";
 import { AuthError } from "next-auth";
+import { headers } from "next/headers";
+import { clientIp, rateLimit } from "@/lib/rate-limit";
 
 export type RegisterState = {
   error?: string;
@@ -32,6 +34,10 @@ export async function registerAction(
   }
   if (password.length < 6) {
     return { error: "Пароль должен быть не короче 6 символов" };
+  }
+
+  if (!(await rateLimit(`register:ip:${clientIp(await headers())}`, 5, 60 * 60))) {
+    return { error: "Слишком много регистраций. Попробуйте через час." };
   }
 
   const existingEmail = await prisma.user.findUnique({ where: { email } });

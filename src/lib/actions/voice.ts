@@ -6,6 +6,8 @@ import { fromDateKey, resolveToday, shiftDateKey } from "@/lib/dates";
 import { prisma } from "@/lib/prisma";
 import { requireUserId } from "@/lib/session";
 import { createTask, deleteTask, type TaskDTO } from "@/lib/actions/tasks";
+import { rateLimit } from "@/lib/rate-limit";
+import { isDateKey, isTimeKey, TASK_TITLE_MAX } from "@/lib/validation";
 
 export type VoiceAdd = {
   title: string;
@@ -45,19 +47,18 @@ function geminiKey(): string | null {
 
 function cleanTitle(value: unknown): string | null {
   if (typeof value !== "string") return null;
-  const title = value.replace(/\s+/g, " ").trim().slice(0, 140);
+  const title = value.replace(/\s+/g, " ").trim().slice(0, TASK_TITLE_MAX);
   return title || null;
 }
 
 function cleanDate(value: unknown, fallback: string): string {
-  if (typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value)) return value;
-  return fallback;
+  return isDateKey(value) ? value : fallback;
 }
 
 function cleanTime(value: unknown): string | null {
   if (typeof value !== "string") return null;
   const time = value.trim();
-  return /^\d{2}:\d{2}$/.test(time) ? time : null;
+  return isTimeKey(time) ? time : null;
 }
 
 function asRecord(value: unknown): Record<string, unknown> | null {
@@ -167,9 +168,12 @@ export async function interpretVoice(
 
   const heard = transcript.replace(/\s+/g, " ").trim().slice(0, 500);
   if (heard.length < 2) throw new Error("Слишком короткая фраза");
+  if (!(await rateLimit(`voice:${userId}`, 30, 60 * 60))) {
+    throw new Error("Слишком много голосовых команд. Попробуйте через час.");
+  }
 
   const today = resolveToday(rawToday);
-  const focus = /^\d{4}-\d{2}-\d{2}$/.test(focusDate) ? focusDate : today;
+  const focus = isDateKey(focusDate) ? focusDate : today;
   const from = shiftDateKey(today, -21);
   const to = shiftDateKey(today, 60);
 

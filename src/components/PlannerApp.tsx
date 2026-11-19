@@ -77,11 +77,13 @@ export function PlannerApp({ initialTasks, initialDate, friends }: Props) {
   }, []);
 
   useEffect(() => {
+    // The server clock can be UTC. The open day must follow the browser,
+    // which is only known after hydration.
     const localToday = todayKey();
     if (localToday !== initialDate) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setDate(localToday);
     }
-    // The server clock can be UTC. The open day must follow the browser.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 

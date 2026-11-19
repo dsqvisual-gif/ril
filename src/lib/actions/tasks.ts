@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { isLingering, resolveToday } from "@/lib/dates";
 import { requireUserId } from "@/lib/session";
+import { isDateKey, isTimeKey, TASK_TITLE_MAX } from "@/lib/validation";
 import {
   ACHIEVEMENT_THRESHOLDS,
   codeForThreshold,
@@ -208,18 +209,16 @@ async function syncAchievements(
   });
   const existingSet = new Set(existing.map((a) => a.code));
 
-  const newlyUnlocked: AchievementCode[] = [];
+  const newlyUnlocked = ACHIEVEMENT_THRESHOLDS.filter((threshold) => completedCount >= threshold)
+    .map(codeForThreshold)
+    .filter((code) => !existingSet.has(code));
 
-  for (const threshold of ACHIEVEMENT_THRESHOLDS) {
-    if (completedCount >= threshold) {
-      const code = codeForThreshold(threshold);
-      if (!existingSet.has(code)) {
-        await prisma.achievementUnlock.create({
-          data: { userId, code },
-        });
-        newlyUnlocked.push(code);
-      }
-    }
+  if (newlyUnlocked.length > 0) {
+    // skipDuplicates: two quick toggles may race to unlock the same achievement.
+    await prisma.achievementUnlock.createMany({
+      data: newlyUnlocked.map((code) => ({ userId, code })),
+      skipDuplicates: true,
+    });
   }
 
   return { newlyUnlocked, completedCount };
@@ -246,7 +245,6 @@ export async function settleOpenTasks(rawToday: string): Promise<TaskDTO[]> {
   const userId = await requireUserId();
   const today = resolveToday(rawToday);
 
-  await prisma.$executeRaw`UPDATE "Task" SET "originDate" = "date" WHERE "originDate" IS NULL`;
   const overdue = await prisma.task.findMany({
     where: {
       done: false,
@@ -256,10 +254,11 @@ export async function settleOpenTasks(rawToday: string): Promise<TaskDTO[]> {
     select: { id: true },
   });
   if (overdue.length > 0) {
-    await prisma.task.updateMany({
-      where: { id: { in: overdue.map((task) => task.id) } },
-      data: { date: today },
-    });
+    const ids = overdue.map((task) => task.id);
+    await prisma.$executeRaw`
+      UPDATE "Task"
+      SET "originDate" = COALESCE("originDate", "date"), "date" = ${today}
+      WHERE "id" = ANY(${ids})`;
   }
 
   const tasks = await prisma.task.findMany({
@@ -329,7 +328,10 @@ export async function restoreTask(taskId: string, rawToday: string): Promise<voi
     data: { archived: false, archivedAt: null, keptOn: today },
   });
   if (!task.done && task.date < today) {
-    await prisma.task.update({ where: { id: task.id }, data: { date: today } });
+    await prisma.task.update({
+      where: { id: task.id },
+      data: { date: today, originDate: task.originDate ?? task.date },
+    });
   }
   revalidatePath("/app");
   revalidatePath("/app/archive");
@@ -392,14 +394,17 @@ export async function createTask(input: CreateTaskInput): Promise<TaskDTO> {
   if (!title) {
     throw new Error("Название обязательно");
   }
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(input.date)) {
+  if (title.length > TASK_TITLE_MAX) {
+    throw new Error(`Название длиннее ${TASK_TITLE_MAX} символов`);
+  }
+  if (!isDateKey(input.date)) {
     throw new Error("Некорректная дата");
   }
 
   let time: string | null = null;
   if (input.time && input.time.trim()) {
     const t = input.time.trim();
-    if (!/^\d{2}:\d{2}$/.test(t)) {
+    if (!isTimeKey(t)) {
       throw new Error("Некорректное время");
     }
     time = t;

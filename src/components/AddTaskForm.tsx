@@ -5,6 +5,7 @@ import Link from "next/link";
 import styles from "./AddTaskForm.module.css";
 import type { CreateTaskInput } from "@/lib/actions/tasks";
 import type { FriendOption } from "@/lib/actions/friends";
+import { TASK_TITLE_MAX } from "@/lib/validation";
 
 type Props = {
   date: string;
@@ -75,6 +76,7 @@ export function AddTaskForm({ date, friends, onCreate }: Props) {
           value={title}
           onChange={(e) => setTitle(e.target.value)}
           placeholder="Например: созвон с командой"
+          maxLength={TASK_TITLE_MAX}
           autoFocus
           required
         />

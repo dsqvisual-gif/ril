@@ -26,17 +26,16 @@ export function FriendsPanel({ initial }: Props) {
   const [busyId, setBusyId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
+  const [syncedInitial, setSyncedInitial] = useState(initial);
+
+  if (syncedInitial !== initial) {
+    setSyncedInitial(initial);
     setBoard(initial);
-  }, [initial]);
+  }
 
   useEffect(() => {
     const q = query.trim().replace(/^@/, "");
-    if (q.length < 2) {
-      setResults(null);
-      setSearching(false);
-      return;
-    }
+    if (q.length < 2) return;
 
     let cancelled = false;
     const timer = window.setTimeout(() => {
@@ -293,10 +292,6 @@ function Person({
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(shown);
   const skipBlur = useRef(false);
-
-  useEffect(() => {
-    if (!editing) setDraft(account.alias || account.name);
-  }, [account.alias, account.name, editing]);
 
   async function save() {
     const next = draft.trim();

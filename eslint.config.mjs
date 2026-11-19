@@ -12,6 +12,8 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Legacy static version served by GitHub Pages.
+    "app.js",
   ]),
 ]);
 
