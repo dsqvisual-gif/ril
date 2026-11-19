@@ -6,6 +6,9 @@ import { fromDateKey, resolveToday, shiftDateKey } from "@/lib/dates";
 import { prisma } from "@/lib/prisma";
 import { requireUserId } from "@/lib/session";
 import { createTask, deleteTask, type TaskDTO } from "@/lib/actions/tasks";
+import { toResult, unwrap, UserError, type ActionResult } from "@/lib/action-result";
+import { rateLimit } from "@/lib/rate-limit";
+import { isDateKey, isTimeKey, TASK_TITLE_MAX } from "@/lib/validation";
 
 export type VoiceAdd = {
   title: string;
@@ -45,19 +48,18 @@ function geminiKey(): string | null {
 
 function cleanTitle(value: unknown): string | null {
   if (typeof value !== "string") return null;
-  const title = value.replace(/\s+/g, " ").trim().slice(0, 140);
+  const title = value.replace(/\s+/g, " ").trim().slice(0, TASK_TITLE_MAX);
   return title || null;
 }
 
 function cleanDate(value: unknown, fallback: string): string {
-  if (typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value)) return value;
-  return fallback;
+  return isDateKey(value) ? value : fallback;
 }
 
 function cleanTime(value: unknown): string | null {
   if (typeof value !== "string") return null;
   const time = value.trim();
-  return /^\d{2}:\d{2}$/.test(time) ? time : null;
+  return isTimeKey(time) ? time : null;
 }
 
 function asRecord(value: unknown): Record<string, unknown> | null {
@@ -103,8 +105,12 @@ function readPlan(raw: unknown, tasks: ListedTask[], focusDate: string): VoicePl
 function parseModelJson(text: string): unknown {
   const start = text.indexOf("{");
   const end = text.lastIndexOf("}");
-  if (start < 0 || end <= start) throw new Error("Пустой ответ");
-  return JSON.parse(text.slice(start, end + 1)) as unknown;
+  if (start < 0 || end <= start) throw new UserError("Не удалось разобрать фразу");
+  try {
+    return JSON.parse(text.slice(start, end + 1)) as unknown;
+  } catch {
+    throw new UserError("Не удалось разобрать фразу");
+  }
 }
 
 async function askGemini(prompt: string, key: string): Promise<unknown> {
@@ -129,47 +135,50 @@ async function askGemini(prompt: string, key: string): Promise<unknown> {
     );
     lastStatus = response.status;
     if (response.status === 401 || response.status === 403) {
-      throw new Error("Ключ ИИ не подходит");
+      throw new UserError("Ключ ИИ не подходит");
     }
     if (response.status === 404 || response.status === 400) {
       const details = await response.text();
       if (/API_KEY_INVALID|API key not valid/i.test(details)) {
-        throw new Error("Ключ ИИ не подходит");
+        throw new UserError("Ключ ИИ не подходит");
       }
       if (response.status === 404 || /not found|NOT_FOUND|is not supported/i.test(details)) continue;
-      throw new Error("Не удалось разобрать фразу");
+      throw new UserError("Не удалось разобрать фразу");
     }
     if (response.status === 429) {
-      throw new Error("Бесплатный лимит на сегодня закончился. Попробуйте позже.");
+      throw new UserError("Бесплатный лимит на сегодня закончился. Попробуйте позже.");
     }
     if (!response.ok) {
-      throw new Error("Не удалось разобрать фразу");
+      throw new UserError("Не удалось разобрать фразу");
     }
     const payload = (await response.json()) as {
       candidates?: { content?: { parts?: { text?: string }[] } }[];
     };
     const text = payload.candidates?.[0]?.content?.parts?.map((part) => part.text ?? "").join("") ?? "";
-    if (!text.trim()) throw new Error("Не удалось разобрать фразу");
+    if (!text.trim()) throw new UserError("Не удалось разобрать фразу");
     return parseModelJson(text);
   }
-  if (lastStatus === 404) throw new Error("Не удалось разобрать фразу");
-  throw new Error("Не удалось разобрать фразу");
+  if (lastStatus === 404) throw new UserError("Не удалось разобрать фразу");
+  throw new UserError("Не удалось разобрать фразу");
 }
 
-export async function interpretVoice(
+async function interpretVoiceInner(
   transcript: string,
   rawToday: string,
   focusDate: string,
 ): Promise<VoicePlan> {
   const userId = await requireUserId();
   const key = geminiKey();
-  if (!key) throw new Error("Ключ ИИ не найден");
+  if (!key) throw new UserError("Ключ ИИ не найден");
 
   const heard = transcript.replace(/\s+/g, " ").trim().slice(0, 500);
-  if (heard.length < 2) throw new Error("Слишком короткая фраза");
+  if (heard.length < 2) throw new UserError("Слишком короткая фраза");
+  if (!(await rateLimit(`voice:${userId}`, 30, 60 * 60))) {
+    throw new UserError("Слишком много голосовых команд. Попробуйте через час.");
+  }
 
   const today = resolveToday(rawToday);
-  const focus = /^\d{4}-\d{2}-\d{2}$/.test(focusDate) ? focusDate : today;
+  const focus = isDateKey(focusDate) ? focusDate : today;
   const from = shiftDateKey(today, -21);
   const to = shiftDateKey(today, 60);
 
@@ -238,7 +247,7 @@ export async function interpretVoice(
   return plan;
 }
 
-export async function applyVoicePlan(plan: VoicePlan): Promise<{
+async function applyVoicePlanInner(plan: VoicePlan): Promise<{
   created: TaskDTO[];
   removedIds: string[];
 }> {
@@ -246,25 +255,37 @@ export async function applyVoicePlan(plan: VoicePlan): Promise<{
   const created: TaskDTO[] = [];
   for (const item of plan.add.slice(0, 8)) {
     created.push(
-      await createTask({
-        title: item.title,
-        date: item.date,
-        time: item.time,
-        important: item.important,
-        urgent: item.urgent,
-      }),
+      unwrap(
+        await createTask({
+          title: item.title,
+          date: item.date,
+          time: item.time,
+          important: item.important,
+          urgent: item.urgent,
+        }),
+      ),
     );
   }
 
   const removedIds: string[] = [];
   for (const item of plan.remove.slice(0, 8)) {
-    try {
-      await deleteTask(item.id);
-      removedIds.push(item.id);
-    } catch {
-      // A shared task can only be deleted by its author.
-    }
+    // A shared task can only be deleted by its author; skip those.
+    if ((await deleteTask(item.id)).ok) removedIds.push(item.id);
   }
 
   return { created, removedIds };
+}
+
+export async function interpretVoice(
+  transcript: string,
+  rawToday: string,
+  focusDate: string,
+): Promise<ActionResult<VoicePlan>> {
+  return toResult(() => interpretVoiceInner(transcript, rawToday, focusDate));
+}
+
+export async function applyVoicePlan(
+  plan: VoicePlan,
+): Promise<ActionResult<{ created: TaskDTO[]; removedIds: string[] }>> {
+  return toResult(() => applyVoicePlanInner(plan));
 }

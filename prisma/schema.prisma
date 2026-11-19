@@ -83,6 +83,14 @@ model TaskViewerState {
   @@index([userId, archived])
 }
 
+model RateLimit {
+  key     String   @id
+  count   Int
+  resetAt DateTime
+
+  @@index([resetAt])
+}
+
 model AchievementUnlock {
   id         String   @id @default(cuid())
   userId     String

@@ -1,9 +1,14 @@
-import NextAuth from "next-auth";
+import NextAuth, { CredentialsSignin } from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 import Google from "next-auth/providers/google";
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
 import { authConfig } from "@/lib/auth.config";
+import { clientIp, rateLimit } from "@/lib/rate-limit";
+
+export class LoginRateLimited extends CredentialsSignin {
+  code = "rate_limited";
+}
 
 function googleProfile(profile: unknown): {
   email: string;
@@ -11,8 +16,15 @@ function googleProfile(profile: unknown): {
   image: string | null;
 } | null {
   if (!profile || typeof profile !== "object") return null;
-  const raw = profile as { email?: unknown; name?: unknown; picture?: unknown };
+  const raw = profile as {
+    email?: unknown;
+    email_verified?: unknown;
+    name?: unknown;
+    picture?: unknown;
+  };
   if (typeof raw.email !== "string" || !raw.email.includes("@")) return null;
+  // Accounts are linked by email, so only a verified Google email may claim one.
+  if (raw.email_verified !== true) return null;
   const email = raw.email.toLowerCase().trim();
   const name =
     typeof raw.name === "string" && raw.name.trim()
@@ -80,7 +92,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         login: { label: "Email или ник", type: "text" },
         password: { label: "Пароль", type: "password" },
       },
-      async authorize(credentials) {
+      async authorize(credentials, request) {
         const login = credentials?.login;
         const password = credentials?.password;
 
@@ -89,6 +101,11 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         }
 
         const key = login.toLowerCase().trim();
+        const allowed =
+          (await rateLimit(`login:ip:${clientIp(request.headers)}`, 30, 15 * 60)) &&
+          (await rateLimit(`login:acct:${key}`, 10, 15 * 60));
+        if (!allowed) throw new LoginRateLimited();
+
         const user = await prisma.user.findFirst({
           where: key.includes("@") ? { email: key } : { username: key },
         });
@@ -149,7 +166,9 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         token.id = user.id;
       }
 
-      if (typeof token.id === "string") {
+      // Refresh from the DB on sign-in and until a nickname is chosen,
+      // not on every request.
+      if (typeof token.id === "string" && (user || !token.username)) {
         const dbUser = await prisma.user.findUnique({ where: { id: token.id } });
         if (dbUser) {
           token.username = dbUser.username;

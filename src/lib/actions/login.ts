@@ -1,6 +1,6 @@
 "use server";
 
-import { signIn } from "@/lib/auth";
+import { LoginRateLimited, signIn } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { AuthError } from "next-auth";
 
@@ -37,6 +37,9 @@ export async function loginAction(
       redirectTo: "/app",
     });
   } catch (error) {
+    if (error instanceof LoginRateLimited) {
+      return { error: "Слишком много попыток входа. Подождите 15 минут." };
+    }
     if (error instanceof AuthError) {
       return { error: "Неверный email, ник или пароль" };
     }

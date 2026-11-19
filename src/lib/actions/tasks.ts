@@ -4,6 +4,8 @@ import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { isLingering, resolveToday } from "@/lib/dates";
 import { requireUserId } from "@/lib/session";
+import { isDateKey, isTimeKey, TASK_TITLE_MAX } from "@/lib/validation";
+import { toResult, UserError, type ActionResult } from "@/lib/action-result";
 import {
   ACHIEVEMENT_THRESHOLDS,
   codeForThreshold,
@@ -208,18 +210,16 @@ async function syncAchievements(
   });
   const existingSet = new Set(existing.map((a) => a.code));
 
-  const newlyUnlocked: AchievementCode[] = [];
+  const newlyUnlocked = ACHIEVEMENT_THRESHOLDS.filter((threshold) => completedCount >= threshold)
+    .map(codeForThreshold)
+    .filter((code) => !existingSet.has(code));
 
-  for (const threshold of ACHIEVEMENT_THRESHOLDS) {
-    if (completedCount >= threshold) {
-      const code = codeForThreshold(threshold);
-      if (!existingSet.has(code)) {
-        await prisma.achievementUnlock.create({
-          data: { userId, code },
-        });
-        newlyUnlocked.push(code);
-      }
-    }
+  if (newlyUnlocked.length > 0) {
+    // skipDuplicates: two quick toggles may race to unlock the same achievement.
+    await prisma.achievementUnlock.createMany({
+      data: newlyUnlocked.map((code) => ({ userId, code })),
+      skipDuplicates: true,
+    });
   }
 
   return { newlyUnlocked, completedCount };
@@ -246,7 +246,6 @@ export async function settleOpenTasks(rawToday: string): Promise<TaskDTO[]> {
   const userId = await requireUserId();
   const today = resolveToday(rawToday);
 
-  await prisma.$executeRaw`UPDATE "Task" SET "originDate" = "date" WHERE "originDate" IS NULL`;
   const overdue = await prisma.task.findMany({
     where: {
       done: false,
@@ -256,10 +255,11 @@ export async function settleOpenTasks(rawToday: string): Promise<TaskDTO[]> {
     select: { id: true },
   });
   if (overdue.length > 0) {
-    await prisma.task.updateMany({
-      where: { id: { in: overdue.map((task) => task.id) } },
-      data: { date: today },
-    });
+    const ids = overdue.map((task) => task.id);
+    await prisma.$executeRaw`
+      UPDATE "Task"
+      SET "originDate" = COALESCE("originDate", "date"), "date" = ${today}
+      WHERE "id" = ANY(${ids})`;
   }
 
   const tasks = await prisma.task.findMany({
@@ -287,49 +287,52 @@ async function touchViewer(
   });
 }
 
-export async function keepTask(taskId: string, rawToday: string): Promise<void> {
+async function keepTaskInner(taskId: string, rawToday: string): Promise<void> {
   const userId = await requireUserId();
   const today = resolveToday(rawToday);
   const task = await prisma.task.findFirst({
     where: { id: taskId, done: false, ...accessWhere(userId) },
     select: { id: true },
   });
-  if (!task) throw new Error("Задача не найдена");
+  if (!task) throw new UserError("Задача не найдена");
   await touchViewer(userId, task.id, { keptOn: today, archived: false, archivedAt: null });
   revalidatePath("/app");
 }
 
-export async function archiveTask(taskId: string): Promise<void> {
+async function archiveTaskInner(taskId: string): Promise<void> {
   const userId = await requireUserId();
   const task = await prisma.task.findFirst({
     where: { id: taskId, ...accessWhere(userId) },
     select: { id: true },
   });
-  if (!task) throw new Error("Задача не найдена");
+  if (!task) throw new UserError("Задача не найдена");
   await touchViewer(userId, task.id, { archived: true, archivedAt: new Date() });
   revalidatePath("/app");
   revalidatePath("/app/archive");
 }
 
-export async function restoreTask(taskId: string, rawToday: string): Promise<void> {
+async function restoreTaskInner(taskId: string, rawToday: string): Promise<void> {
   const userId = await requireUserId();
   const today = resolveToday(rawToday);
   const state = await prisma.taskViewerState.findUnique({
     where: { userId_taskId: { userId, taskId } },
   });
-  if (!state?.archived) throw new Error("В архиве нет этой задачи");
+  if (!state?.archived) throw new UserError("В архиве нет этой задачи");
 
   const task = await prisma.task.findFirst({
     where: { id: taskId, ...accessWhere(userId) },
   });
-  if (!task) throw new Error("Задача больше недоступна");
+  if (!task) throw new UserError("Задача больше недоступна");
 
   await prisma.taskViewerState.update({
     where: { id: state.id },
     data: { archived: false, archivedAt: null, keptOn: today },
   });
   if (!task.done && task.date < today) {
-    await prisma.task.update({ where: { id: task.id }, data: { date: today } });
+    await prisma.task.update({
+      where: { id: task.id },
+      data: { date: today, originDate: task.originDate ?? task.date },
+    });
   }
   revalidatePath("/app");
   revalidatePath("/app/archive");
@@ -386,21 +389,24 @@ async function acceptedFriendIds(userId: string, ids: string[]): Promise<Set<str
   return allowed;
 }
 
-export async function createTask(input: CreateTaskInput): Promise<TaskDTO> {
+async function createTaskInner(input: CreateTaskInput): Promise<TaskDTO> {
   const userId = await requireUserId();
   const title = input.title.trim();
   if (!title) {
-    throw new Error("Название обязательно");
+    throw new UserError("Название обязательно");
   }
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(input.date)) {
-    throw new Error("Некорректная дата");
+  if (title.length > TASK_TITLE_MAX) {
+    throw new UserError(`Название длиннее ${TASK_TITLE_MAX} символов`);
+  }
+  if (!isDateKey(input.date)) {
+    throw new UserError("Некорректная дата");
   }
 
   let time: string | null = null;
   if (input.time && input.time.trim()) {
     const t = input.time.trim();
-    if (!/^\d{2}:\d{2}$/.test(t)) {
-      throw new Error("Некорректное время");
+    if (!isTimeKey(t)) {
+      throw new UserError("Некорректное время");
     }
     time = t;
   }
@@ -408,7 +414,7 @@ export async function createTask(input: CreateTaskInput): Promise<TaskDTO> {
   const friendIds = [...new Set((input.friendIds ?? []).filter((id) => id && id !== userId))];
   const allowed = await acceptedFriendIds(userId, friendIds);
   if (friendIds.some((id) => !allowed.has(id))) {
-    throw new Error("Совместное дело можно добавить только с друзьями");
+    throw new UserError("Совместное дело можно добавить только с друзьями");
   }
 
   const task = await prisma.task.create({
@@ -432,14 +438,14 @@ export async function createTask(input: CreateTaskInput): Promise<TaskDTO> {
   return dto;
 }
 
-export async function toggleTask(taskId: string): Promise<ToggleResult> {
+async function toggleTaskInner(taskId: string): Promise<ToggleResult> {
   const userId = await requireUserId();
   const task = await prisma.task.findFirst({
     where: { id: taskId, ...openWhere(userId) },
     include: includeFor(userId),
   });
   if (!task) {
-    throw new Error("Задача не найдена");
+    throw new UserError("Задача не найдена");
   }
 
   const done = !task.done;
@@ -472,15 +478,15 @@ export async function toggleTask(taskId: string): Promise<ToggleResult> {
   };
 }
 
-export async function removeTask(taskId: string): Promise<void> {
+async function removeTaskInner(taskId: string): Promise<void> {
   const userId = await requireUserId();
   const task = await prisma.task.findFirst({
     where: { id: taskId, ...accessWhere(userId) },
     select: { id: true, userId: true },
   });
-  if (!task) throw new Error("Задача не найдена");
+  if (!task) throw new UserError("Задача не найдена");
   if (task.userId === userId) {
-    await deleteTask(taskId);
+    await deleteTaskInner(taskId);
     return;
   }
   await prisma.taskShare.deleteMany({ where: { taskId: task.id, userId } });
@@ -489,17 +495,17 @@ export async function removeTask(taskId: string): Promise<void> {
   revalidatePath("/app/archive");
 }
 
-export async function deleteTask(taskId: string): Promise<void> {
+async function deleteTaskInner(taskId: string): Promise<void> {
   const userId = await requireUserId();
   const task = await prisma.task.findFirst({
     where: { id: taskId, ...accessWhere(userId) },
     include: { shares: { select: { userId: true } } },
   });
   if (!task) {
-    throw new Error("Задача не найдена");
+    throw new UserError("Задача не найдена");
   }
   if (task.userId !== userId) {
-    throw new Error("Удалить совместное дело может только автор");
+    throw new UserError("Удалить совместное дело может только автор");
   }
 
   const involved = [task.userId, ...task.shares.map((share) => share.userId)];
@@ -510,4 +516,32 @@ export async function deleteTask(taskId: string): Promise<void> {
 
   revalidatePath("/app");
   revalidatePath("/app/achievements");
+}
+
+export async function keepTask(taskId: string, rawToday: string): Promise<ActionResult<void>> {
+  return toResult(() => keepTaskInner(taskId, rawToday));
+}
+
+export async function archiveTask(taskId: string): Promise<ActionResult<void>> {
+  return toResult(() => archiveTaskInner(taskId));
+}
+
+export async function restoreTask(taskId: string, rawToday: string): Promise<ActionResult<void>> {
+  return toResult(() => restoreTaskInner(taskId, rawToday));
+}
+
+export async function createTask(input: CreateTaskInput): Promise<ActionResult<TaskDTO>> {
+  return toResult(() => createTaskInner(input));
+}
+
+export async function toggleTask(taskId: string): Promise<ActionResult<ToggleResult>> {
+  return toResult(() => toggleTaskInner(taskId));
+}
+
+export async function removeTask(taskId: string): Promise<ActionResult<void>> {
+  return toResult(() => removeTaskInner(taskId));
+}
+
+export async function deleteTask(taskId: string): Promise<ActionResult<void>> {
+  return toResult(() => deleteTaskInner(taskId));
 }

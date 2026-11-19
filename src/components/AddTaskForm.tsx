@@ -5,6 +5,8 @@ import Link from "next/link";
 import styles from "./AddTaskForm.module.css";
 import type { CreateTaskInput } from "@/lib/actions/tasks";
 import type { FriendOption } from "@/lib/actions/friends";
+import { TASK_TITLE_MAX } from "@/lib/validation";
+import { errorText } from "@/lib/action-result";
 
 type Props = {
   date: string;
@@ -51,7 +53,7 @@ export function AddTaskForm({ date, friends, onCreate }: Props) {
       setFriendIds([]);
       setOpen(false);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Не удалось сохранить");
+      setError(errorText(err, "Не удалось сохранить"));
     } finally {
       setPending(false);
     }
@@ -75,6 +77,7 @@ export function AddTaskForm({ date, friends, onCreate }: Props) {
           value={title}
           onChange={(e) => setTitle(e.target.value)}
           placeholder="Например: созвон с командой"
+          maxLength={TASK_TITLE_MAX}
           autoFocus
           required
         />

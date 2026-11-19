@@ -28,10 +28,12 @@ function isActive(href: string, pathname: string) {
 export function AppHeader({ name, username }: Props) {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
+  const [openedOn, setOpenedOn] = useState(pathname);
 
-  useEffect(() => {
+  if (openedOn !== pathname) {
+    setOpenedOn(pathname);
     setOpen(false);
-  }, [pathname]);
+  }
 
   useEffect(() => {
     if (!open) return;

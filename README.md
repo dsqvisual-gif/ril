@@ -5,16 +5,27 @@
 ## Стек
 
 - Next.js (App Router) + TypeScript
-- Prisma + SQLite
+- Prisma + PostgreSQL
 - Auth.js (email, ник или Google)
+- Gemini для голосового ввода
 
 ## Запуск
 
+Создайте `.env` с переменными:
+
+```
+DATABASE_URL="postgresql://..."
+AUTH_SECRET="..."          # npx auth secret
+GEMINI_API_KEY="..."       # необязательно, нужен для голосового ввода
+```
+
 ```bash
 npm install
-npx prisma migrate dev
+npm run db:push
 npm run dev
 ```
+
+Схема БД применяется через `prisma db push`. После изменений в `prisma/schema.prisma` выполните `npm run db:push` и на продовой базе.
 
 Откройте [http://localhost:3000](http://localhost:3000).
 
