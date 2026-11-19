@@ -1,6 +1,5 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { isLingering, resolveToday } from "@/lib/dates";
 import { requireUserId } from "@/lib/session";
@@ -58,7 +57,6 @@ export type CreateTaskInput = {
 export type ToggleResult = {
   task: TaskDTO;
   newlyUnlocked: AchievementCode[];
-  completedCount: number;
 };
 
 function includeFor(userId: string) {
@@ -200,14 +198,10 @@ function completedWhere(userId: string) {
 async function syncAchievements(
   userId: string,
 ): Promise<{ newlyUnlocked: AchievementCode[]; completedCount: number }> {
-  const completedCount = await prisma.task.count({
-    where: completedWhere(userId),
-  });
-
-  const existing = await prisma.achievementUnlock.findMany({
-    where: { userId },
-    select: { code: true },
-  });
+  const [completedCount, existing] = await Promise.all([
+    prisma.task.count({ where: completedWhere(userId) }),
+    prisma.achievementUnlock.findMany({ where: { userId }, select: { code: true } }),
+  ]);
   const existingSet = new Set(existing.map((a) => a.code));
 
   const newlyUnlocked = ACHIEVEMENT_THRESHOLDS.filter((threshold) => completedCount >= threshold)
@@ -242,7 +236,14 @@ export async function queryTasks(from: string, to: string): Promise<TaskDTO[]> {
   return present(tasks, userId);
 }
 
-export async function settleOpenTasks(rawToday: string): Promise<TaskDTO[]> {
+export type SettleResult = {
+  /** Open tasks lingering for two or more days, to ask the user about. */
+  prompts: TaskDTO[];
+  /** Whether overdue tasks were moved to today. */
+  moved: boolean;
+};
+
+export async function settleOpenTasks(rawToday: string): Promise<SettleResult> {
   const userId = await requireUserId();
   const today = resolveToday(rawToday);
 
@@ -271,8 +272,10 @@ export async function settleOpenTasks(rawToday: string): Promise<TaskDTO[]> {
     include: includeFor(userId),
     orderBy: [{ urgent: "desc" }, { important: "desc" }, { createdAt: "asc" }],
   });
-  const visible = await present(tasks, userId);
-  return visible.filter((task) => isLingering(task.originDate, task.keptOn, today));
+  const lingering = tasks.filter((task) =>
+    isLingering(task.originDate || task.date, task.viewerStates[0]?.keptOn ?? null, today),
+  );
+  return { prompts: await present(lingering, userId), moved: overdue.length > 0 };
 }
 
 async function touchViewer(
@@ -296,7 +299,6 @@ async function keepTaskInner(taskId: string, rawToday: string): Promise<void> {
   });
   if (!task) throw new UserError("Задача не найдена");
   await touchViewer(userId, task.id, { keptOn: today, archived: false, archivedAt: null });
-  revalidatePath("/app");
 }
 
 async function archiveTaskInner(taskId: string): Promise<void> {
@@ -307,21 +309,16 @@ async function archiveTaskInner(taskId: string): Promise<void> {
   });
   if (!task) throw new UserError("Задача не найдена");
   await touchViewer(userId, task.id, { archived: true, archivedAt: new Date() });
-  revalidatePath("/app");
-  revalidatePath("/app/archive");
 }
 
 async function restoreTaskInner(taskId: string, rawToday: string): Promise<void> {
   const userId = await requireUserId();
   const today = resolveToday(rawToday);
-  const state = await prisma.taskViewerState.findUnique({
-    where: { userId_taskId: { userId, taskId } },
-  });
+  const [state, task] = await Promise.all([
+    prisma.taskViewerState.findUnique({ where: { userId_taskId: { userId, taskId } } }),
+    prisma.task.findFirst({ where: { id: taskId, ...accessWhere(userId) } }),
+  ]);
   if (!state?.archived) throw new UserError("В архиве нет этой задачи");
-
-  const task = await prisma.task.findFirst({
-    where: { id: taskId, ...accessWhere(userId) },
-  });
   if (!task) throw new UserError("Задача больше недоступна");
 
   await prisma.taskViewerState.update({
@@ -334,8 +331,6 @@ async function restoreTaskInner(taskId: string, rawToday: string): Promise<void>
       data: { date: today, originDate: task.originDate ?? task.date },
     });
   }
-  revalidatePath("/app");
-  revalidatePath("/app/archive");
 }
 
 export async function listArchivedTasks(): Promise<ArchivedTask[]> {
@@ -433,7 +428,6 @@ async function createTaskInner(input: CreateTaskInput): Promise<TaskDTO> {
     include: includeFor(userId),
   });
 
-  revalidatePath("/app");
   const [dto] = await present([task], userId);
   return dto;
 }
@@ -442,7 +436,7 @@ async function toggleTaskInner(taskId: string): Promise<ToggleResult> {
   const userId = await requireUserId();
   const task = await prisma.task.findFirst({
     where: { id: taskId, ...openWhere(userId) },
-    include: includeFor(userId),
+    select: { id: true, userId: true, done: true, shares: { select: { userId: true } } },
   });
   if (!task) {
     throw new UserError("Задача не найдена");
@@ -458,23 +452,17 @@ async function toggleTaskInner(taskId: string): Promise<ToggleResult> {
     include: includeFor(userId),
   });
 
-  const involved = [task.userId, ...task.shares.map((share) => share.user.id)];
-  let mine: { newlyUnlocked: AchievementCode[]; completedCount: number } = {
-    newlyUnlocked: [],
-    completedCount: 0,
-  };
-  for (const id of involved) {
-    const result = await syncAchievements(id);
-    if (id === userId) mine = result;
-  }
+  // Completing can unlock achievements for everyone on the task;
+  // undoing never revokes them, so there is nothing to sync then.
+  const involved = done ? [task.userId, ...task.shares.map((share) => share.userId)] : [];
+  const [[dto], synced] = await Promise.all([
+    present([updated], userId),
+    Promise.all(involved.map(syncAchievements)),
+  ]);
 
-  revalidatePath("/app/achievements");
-
-  const [dto] = await present([updated], userId);
   return {
     task: dto,
-    newlyUnlocked: done ? mine.newlyUnlocked : [],
-    completedCount: mine.completedCount,
+    newlyUnlocked: synced[involved.indexOf(userId)]?.newlyUnlocked ?? [],
   };
 }
 
@@ -489,17 +477,17 @@ async function removeTaskInner(taskId: string): Promise<void> {
     await deleteTaskInner(taskId);
     return;
   }
-  await prisma.taskShare.deleteMany({ where: { taskId: task.id, userId } });
-  await prisma.taskViewerState.deleteMany({ where: { taskId: task.id, userId } });
-  revalidatePath("/app");
-  revalidatePath("/app/archive");
+  await prisma.$transaction([
+    prisma.taskShare.deleteMany({ where: { taskId: task.id, userId } }),
+    prisma.taskViewerState.deleteMany({ where: { taskId: task.id, userId } }),
+  ]);
 }
 
 async function deleteTaskInner(taskId: string): Promise<void> {
   const userId = await requireUserId();
   const task = await prisma.task.findFirst({
     where: { id: taskId, ...accessWhere(userId) },
-    include: { shares: { select: { userId: true } } },
+    select: { id: true, userId: true },
   });
   if (!task) {
     throw new UserError("Задача не найдена");
@@ -508,14 +496,8 @@ async function deleteTaskInner(taskId: string): Promise<void> {
     throw new UserError("Удалить совместное дело может только автор");
   }
 
-  const involved = [task.userId, ...task.shares.map((share) => share.userId)];
+  // Deleting only lowers completed counts, so it cannot unlock achievements.
   await prisma.task.delete({ where: { id: task.id } });
-  for (const id of involved) {
-    await syncAchievements(id);
-  }
-
-  revalidatePath("/app");
-  revalidatePath("/app/achievements");
 }
 
 export async function keepTask(taskId: string, rawToday: string): Promise<ActionResult<void>> {

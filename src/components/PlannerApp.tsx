@@ -88,23 +88,34 @@ export function PlannerApp({ initialTasks, initialDate, friends }: Props) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  const visibleRef = useRef(visibleDates);
   useEffect(() => {
-    let cancelled = false;
+    visibleRef.current = visibleDates;
+  }, [visibleDates]);
+
+  // Once per visit: move overdue tasks to today and collect lingering ones.
+  useEffect(() => {
     void (async () => {
       const localToday = todayKey();
       try {
-        const stale = await settleOpenTasks(localToday);
-        if (cancelled) return;
-        setPrompts(stale.filter((task) => !dismissed.current.has(task.id)));
-        setTasks((prev) => prev.filter((task) => task.done || task.date >= localToday));
+        const settled = await settleOpenTasks(localToday);
+        setPrompts(settled.prompts.filter((task) => !dismissed.current.has(task.id)));
+        if (settled.moved) {
+          setTasks((prev) => prev.filter((task) => task.done || task.date >= localToday));
+          await loadRange(visibleRef.current);
+        }
       } catch {
-        if (!cancelled) setToast("Не удалось перенести старые дела");
+        setToast("Не удалось перенести старые дела");
       }
-      if (!cancelled) await loadRange(visibleDates);
     })();
-    return () => {
-      cancelled = true;
-    };
+  }, [loadRange]);
+
+  // The server already rendered the initial day; fetch only when the range changes.
+  const loadedRange = useRef(initialDate);
+  useEffect(() => {
+    if (loadedRange.current === rangeKey) return;
+    loadedRange.current = rangeKey;
+    void loadRange(visibleDates);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [rangeKey, loadRange]);
 
@@ -149,18 +160,24 @@ export function PlannerApp({ initialTasks, initialDate, friends }: Props) {
 
   const dismissCheer = useCallback(() => setCheerKey(0), []);
 
+  // Toggle and delete update the screen first and reconcile with the server after.
+  const pending = useRef(new Set<string>());
+
   async function handleToggle(id: string) {
-    const wasDone = tasks.some((task) => task.id === id && task.done);
-    setBusyId(id);
+    const before = tasks.find((task) => task.id === id);
+    if (!before || pending.current.has(id)) return;
+    pending.current.add(id);
+
+    const done = !before.done;
+    setTasks((prev) => prev.map((t) => (t.id === id ? { ...t, done } : t)));
+    if (done) {
+      setCheerKey((key) => key + 1);
+      setPrompts((prev) => prev.filter((task) => task.id !== id));
+    }
+
     try {
       const result = unwrap(await toggleTask(id));
       setTasks((prev) => prev.map((t) => (t.id === id ? result.task : t)));
-      if (!wasDone && result.task.done) {
-        setCheerKey((key) => key + 1);
-      }
-      if (result.task.done) {
-        setPrompts((prev) => prev.filter((task) => task.id !== id));
-      }
       if (result.newlyUnlocked.length > 0) {
         const first = ACHIEVEMENTS.find(
           (a) => a.code === result.newlyUnlocked[0],
@@ -168,9 +185,10 @@ export function PlannerApp({ initialTasks, initialDate, friends }: Props) {
         setToast(first?.title ?? "Достижение разблокировано");
       }
     } catch (err) {
+      setTasks((prev) => prev.map((t) => (t.id === id ? before : t)));
       setToast(errorText(err, "Не удалось обновить дело"));
     } finally {
-      setBusyId(null);
+      pending.current.delete(id);
     }
   }
 
@@ -194,15 +212,24 @@ export function PlannerApp({ initialTasks, initialDate, friends }: Props) {
   }
 
   async function handleDelete(id: string) {
-    setBusyId(id);
+    const index = tasks.findIndex((task) => task.id === id);
+    if (index < 0 || pending.current.has(id)) return;
+    const removed = tasks[index];
+    pending.current.add(id);
+    setTasks((prev) => prev.filter((t) => t.id !== id));
+
     try {
       unwrap(await deleteTask(id));
-      setTasks((prev) => prev.filter((t) => t.id !== id));
       setPrompts((prev) => prev.filter((t) => t.id !== id));
     } catch (err) {
+      setTasks((prev) => {
+        const next = [...prev];
+        next.splice(Math.min(index, next.length), 0, removed);
+        return next;
+      });
       setToast(errorText(err, "Не удалось удалить дело"));
     } finally {
-      setBusyId(null);
+      pending.current.delete(id);
     }
   }
 
