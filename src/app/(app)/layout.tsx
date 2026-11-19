@@ -1,7 +1,6 @@
 import { AppHeader } from "@/components/AppHeader";
 import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
-import { prisma } from "@/lib/prisma";
 import { NicknameGate } from "@/components/NicknameGate";
 import { suggestUsername } from "@/lib/username";
 
@@ -10,26 +9,22 @@ export default async function AppLayout({
 }: {
   children: React.ReactNode;
 }) {
+  // Name and nickname come from the session token; the JWT callback
+  // re-reads them from the DB until a nickname is set.
   const session = await auth();
-  if (!session?.user?.id) {
+  const user = session?.user;
+  if (!user?.id) {
     redirect("/login");
   }
-
-  const user = await prisma.user.findUnique({
-    where: { id: session.user.id },
-    select: { name: true, username: true },
-  });
-  if (!user) {
-    redirect("/login");
-  }
+  const name = user.name ?? "";
 
   return (
     <div className="app-shell">
-      <AppHeader name={user.name} username={user.username} />
+      <AppHeader name={name} username={user.username ?? null} />
       {user.username ? (
         children
       ) : (
-        <NicknameGate suggested={suggestUsername(user.name)} />
+        <NicknameGate suggested={suggestUsername(name)} />
       )}
     </div>
   );

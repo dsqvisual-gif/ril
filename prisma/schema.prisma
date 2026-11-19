@@ -1,5 +1,7 @@
 generator client {
-  provider = "prisma-client-js"
+  provider        = "prisma-client-js"
+  // Load `include` relations in one SQL query instead of one per relation.
+  previewFeatures = ["relationJoins"]
 }
 
 datasource db {
