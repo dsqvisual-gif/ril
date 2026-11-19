@@ -1,0 +1,146 @@
+.hero {
+  min-height: 100vh;
+  width: min(920px, calc(100% - 2rem));
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 3rem 0 4rem;
+  position: relative;
+  gap: 1rem;
+}
+
+.glow {
+  position: absolute;
+  inset: 8% auto auto 50%;
+  width: min(520px, 80vw);
+  height: 320px;
+  transform: translateX(-50%);
+  background: radial-gradient(circle, rgba(0, 122, 255, 0.18), transparent 70%);
+  pointer-events: none;
+  z-index: 0;
+}
+
+.brand,
+.headline,
+.lead,
+.cta,
+.preview {
+  position: relative;
+  z-index: 1;
+}
+
+.brand {
+  animation: fadeUp 0.5s ease both;
+}
+
+.headline {
+  max-width: 16ch;
+  font-size: clamp(1.45rem, 3.2vw, 2.1rem);
+  font-weight: 650;
+  letter-spacing: -0.03em;
+  color: var(--ink);
+  animation: fadeUp 0.55s ease 0.05s both;
+}
+
+.lead {
+  max-width: 38ch;
+  color: var(--ink-secondary);
+  font-size: 1.05rem;
+  line-height: 1.55;
+  animation: fadeUp 0.55s ease 0.1s both;
+}
+
+.cta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-top: 0.5rem;
+  animation: fadeUp 0.55s ease 0.15s both;
+}
+
+.preview {
+  margin-top: 2.5rem;
+  animation: fadeUp 0.6s ease 0.22s both;
+}
+
+.previewCard {
+  width: min(420px, 100%);
+  padding: 1.25rem;
+  border-radius: 22px;
+  background: rgba(255, 255, 255, 0.78);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow);
+  backdrop-filter: blur(16px);
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+
+.previewCard > span {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--ink-tertiary);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.fakeTask {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  padding: 0.75rem 0.85rem;
+  border-radius: 12px;
+  background: #fff;
+  border: 1px solid var(--border);
+  font-weight: 550;
+  font-size: 0.92rem;
+}
+
+.fakeTask i {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 2px solid rgba(0, 122, 255, 0.4);
+  display: inline-block;
+}
+
+.fakeTask em {
+  margin-left: auto;
+  font-style: normal;
+  color: var(--accent);
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+.done {
+  opacity: 0.55;
+  text-decoration: line-through;
+}
+
+.done i {
+  background: var(--success);
+  border-color: var(--success);
+}
+
+@media (max-width: 768px) {
+  .hero {
+    align-items: center;
+    text-align: center;
+  }
+
+  .headline,
+  .lead {
+    max-width: 36ch;
+  }
+
+  .cta,
+  .preview {
+    justify-content: center;
+  }
+
+  .preview {
+    display: flex;
+    width: 100%;
+  }
+}

@@ -1,0 +1,55 @@
+.link,
+.large {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.7rem;
+}
+
+.mark {
+  display: block;
+  width: 36px;
+  height: 36px;
+}
+
+.word {
+  font-weight: 800;
+  letter-spacing: -0.06em;
+  line-height: 1;
+  color: var(--ink);
+}
+
+.link .word {
+  font-size: 1.35rem;
+}
+
+.large .mark {
+  width: 72px;
+  height: 72px;
+}
+
+.large {
+  gap: 0.95rem;
+}
+
+@media (max-width: 768px) {
+  .compact {
+    gap: 0;
+  }
+
+  .compact .word {
+    display: none;
+  }
+
+  .compact .mark {
+    width: 28px !important;
+    height: 28px !important;
+  }
+}
+
+.large .word {
+  font-size: clamp(2.6rem, 6vw, 4.2rem);
+  background: linear-gradient(120deg, #1d1d1f 30%, #007aff 120%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}

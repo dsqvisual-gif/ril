@@ -1,0 +1,94 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String              @id @default(cuid())
+  email        String              @unique
+  passwordHash String?
+  name         String
+  username     String?             @unique
+  image        String?
+  createdAt    DateTime            @default(now())
+  tasks        Task[]
+  achievements AchievementUnlock[]
+  sentRequests Friendship[]        @relation("FriendRequester")
+  receivedRequests Friendship[]    @relation("FriendAddressee")
+  taskShares   TaskShare[]
+  taskViews    TaskViewerState[]
+}
+
+model Friendship {
+  id          String   @id @default(cuid())
+  requesterId String
+  addresseeId String
+  status          String
+  requesterAlias  String?
+  addresseeAlias  String?
+  createdAt       DateTime @default(now())
+  requester   User     @relation("FriendRequester", fields: [requesterId], references: [id], onDelete: Cascade)
+  addressee   User     @relation("FriendAddressee", fields: [addresseeId], references: [id], onDelete: Cascade)
+
+  @@unique([requesterId, addresseeId])
+  @@index([addresseeId, status])
+}
+
+model Task {
+  id        String      @id @default(cuid())
+  userId    String
+  user      User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title     String
+  date      String
+  originDate String?
+  time      String?
+  important Boolean     @default(false)
+  urgent    Boolean     @default(false)
+  done      Boolean     @default(false)
+  doneAt    DateTime?
+  createdAt DateTime    @default(now())
+  shares    TaskShare[]
+  viewerStates TaskViewerState[]
+
+  @@index([userId, date])
+}
+
+model TaskShare {
+  id        String   @id @default(cuid())
+  taskId    String
+  userId    String
+  task      Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([taskId, userId])
+  @@index([userId])
+}
+
+model TaskViewerState {
+  id         String    @id @default(cuid())
+  userId     String
+  taskId     String
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  task       Task      @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  keptOn     String?
+  archived   Boolean   @default(false)
+  archivedAt DateTime?
+
+  @@unique([userId, taskId])
+  @@index([userId, archived])
+}
+
+model AchievementUnlock {
+  id         String   @id @default(cuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  code       String
+  unlockedAt DateTime @default(now())
+
+  @@unique([userId, code])
+}

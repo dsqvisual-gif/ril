@@ -111,12 +111,15 @@ button:disabled { cursor: default; }
 .brand-mark {
   width: 32px;
   height: 32px;
-  border-radius: 9px;
-  background: var(--accent);
   display: grid;
-  place-items: center;
-  box-shadow: 0 6px 16px color-mix(in srgb, var(--accent) 35%, transparent);
   flex: none;
+}
+
+.brand-mark img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
 }
 
 .brand-name {

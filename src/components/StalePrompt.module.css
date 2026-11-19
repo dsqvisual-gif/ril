@@ -1,0 +1,48 @@
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.7rem;
+  margin-bottom: 1rem;
+}
+
+.card {
+  padding: 1rem 1.05rem;
+  border-radius: 16px;
+  background: #fff8ee;
+  border: 1px solid #f0d7a8;
+  box-shadow: var(--shadow-soft);
+}
+
+.kicker {
+  color: #8a5a12;
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.title {
+  margin-top: 0.25rem;
+  font-size: 1.05rem;
+  font-weight: 750;
+  letter-spacing: -0.02em;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  margin-top: 0.85rem;
+}
+
+.actions .btn {
+  padding: 0.55rem 0.95rem;
+  font-size: 0.88rem;
+}
+
+.remove {
+  color: var(--danger);
+  background: rgba(255, 59, 48, 0.08);
+}
+
+.remove:hover {
+  background: rgba(255, 59, 48, 0.14);
+}

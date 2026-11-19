@@ -696,7 +696,7 @@ function awardsHTML() {
   }).join("");
   return `<div class="sheet-head">
       <div>
-        <p class="kicker">Ril</p>
+        <p class="kicker">PLANO</p>
         <h2 id="awards-title">Достижения</h2>
       </div>
       <button class="close-x" type="button" data-close-dialog aria-label="Закрыть">
@@ -743,7 +743,7 @@ function paintChrome() {
   const dateBit = state.view === "month"
     ? `${MONTHS_NOM[state.cursor.getMonth()]} ${state.cursor.getFullYear()}`
     : `${state.cursor.getDate()} ${MONTHS_GEN[state.cursor.getMonth()]}`;
-  document.title = `${dateBit} — Ril`;
+  document.title = `${dateBit} — PLANO`;
 }
 
 function mountPopover() {

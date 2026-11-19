@@ -1,0 +1,14 @@
+node_modules
+.next
+out
+build
+coverage
+.env
+.env.*
+*.db
+*.db-journal
+prisma/dev.db
+.vercel
+scripts/_user-export.json
+*.tsbuildinfo
+next-env.d.ts
