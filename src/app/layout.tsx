@@ -10,6 +10,12 @@ const manrope = Manrope({
 
 export const metadata: Metadata = {
   title: "Uspeyka — планер дел",
+  applicationName: "Uspeyka",
+  appleWebApp: {
+    capable: true,
+    title: "Uspeyka",
+    statusBarStyle: "default",
+  },
   description: "Планер на день, неделю и месяц с достижениями",
 };
 
