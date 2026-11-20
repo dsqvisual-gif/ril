@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { requireUserId } from "@/lib/session";
 import { isDateKey } from "@/lib/validation";
 import { toResult, UserError, type ActionResult } from "@/lib/action-result";
+import { isGoalKind, type GoalKind } from "@/lib/goal-progress";
 
 export type GoalStepDTO = {
   id: string;
@@ -14,6 +15,8 @@ export type GoalStepDTO = {
 export type GoalEntryDTO = {
   id: string;
   text: string;
+  amount: number | null;
+  progress: number | null;
   createdAt: string;
 };
 
@@ -22,16 +25,32 @@ export type GoalDTO = {
   title: string;
   why: string | null;
   deadline: string | null;
+  kind: GoalKind;
+  target: number | null;
+  unit: string | null;
+  selfProgress: number | null;
   doneAt: string | null;
   createdAt: string;
   steps: GoalStepDTO[];
   entries: GoalEntryDTO[];
 };
 
+export type GoalMeasureInput = {
+  kind: GoalKind;
+  target?: number | null;
+  unit?: string | null;
+};
+
 export type CreateGoalInput = {
   title: string;
   why?: string | null;
   deadline?: string | null;
+} & Partial<GoalMeasureInput>;
+
+export type GoalEntryInput = {
+  text: string;
+  amount?: number | null;
+  progress?: number | null;
 };
 
 const GOAL_TITLE_MAX = 140;
@@ -40,6 +59,8 @@ const STEP_TITLE_MAX = 140;
 const ENTRY_TEXT_MAX = 500;
 const GOALS_MAX = 100;
 const STEPS_MAX = 60;
+const UNIT_MAX = 20;
+const TARGET_MAX = 1_000_000_000;
 
 const goalInclude = {
   steps: { orderBy: { createdAt: "asc" as const } },
@@ -51,10 +72,20 @@ type GoalRecord = {
   title: string;
   why: string | null;
   deadline: string | null;
+  kind: string;
+  target: number | null;
+  unit: string | null;
+  selfProgress: number | null;
   doneAt: Date | null;
   createdAt: Date;
   steps: { id: string; title: string; done: boolean }[];
-  entries: { id: string; text: string; createdAt: Date }[];
+  entries: {
+    id: string;
+    text: string;
+    amount: number | null;
+    progress: number | null;
+    createdAt: Date;
+  }[];
 };
 
 function toDTO(goal: GoalRecord): GoalDTO {
@@ -63,12 +94,18 @@ function toDTO(goal: GoalRecord): GoalDTO {
     title: goal.title,
     why: goal.why,
     deadline: goal.deadline,
+    kind: isGoalKind(goal.kind) ? goal.kind : "steps",
+    target: goal.target,
+    unit: goal.unit,
+    selfProgress: goal.selfProgress,
     doneAt: goal.doneAt ? goal.doneAt.toISOString() : null,
     createdAt: goal.createdAt.toISOString(),
     steps: goal.steps.map((step) => ({ id: step.id, title: step.title, done: step.done })),
     entries: goal.entries.map((entry) => ({
       id: entry.id,
       text: entry.text,
+      amount: entry.amount,
+      progress: entry.progress,
       createdAt: entry.createdAt.toISOString(),
     })),
   };
@@ -82,6 +119,22 @@ function cleanText(raw: unknown, max: number, label: string, required: boolean):
   }
   if (text.length > max) throw new UserError(`${label}: не длиннее ${max} символов`);
   return text;
+}
+
+function parseMeasure(input: Partial<GoalMeasureInput>): {
+  kind: GoalKind;
+  target: number | null;
+  unit: string | null;
+} {
+  const kind = input.kind ?? "steps";
+  if (!isGoalKind(kind)) throw new UserError("Неизвестный способ измерения");
+  if (kind !== "number") return { kind, target: null, unit: null };
+  const target = Number(input.target);
+  if (!Number.isFinite(target) || target <= 0 || target > TARGET_MAX) {
+    throw new UserError("Укажите, сколько нужно — число больше нуля");
+  }
+  const unit = cleanText(input.unit, UNIT_MAX, "Единица", false);
+  return { kind, target, unit };
 }
 
 async function ownGoal(userId: string, goalId: string) {
@@ -121,8 +174,9 @@ async function createGoalInner(input: CreateGoalInput): Promise<GoalDTO> {
   const count = await prisma.goal.count({ where: { userId } });
   if (count >= GOALS_MAX) throw new UserError(`Можно держать до ${GOALS_MAX} целей`);
 
+  const measure = parseMeasure(input);
   const goal = await prisma.goal.create({
-    data: { userId, title, why, deadline },
+    data: { userId, title, why, deadline, ...measure },
     include: goalInclude,
   });
   return toDTO(goal);
@@ -189,11 +243,55 @@ async function deleteStepInner(stepId: string): Promise<GoalDTO> {
   return loadGoal(step.goalId);
 }
 
-async function addEntryInner(goalId: string, rawText: string): Promise<GoalDTO> {
+async function addEntryInner(goalId: string, input: GoalEntryInput): Promise<GoalDTO> {
   const userId = await requireUserId();
-  const text = cleanText(rawText, ENTRY_TEXT_MAX, "Запись", true)!;
+  const text = cleanText(input.text, ENTRY_TEXT_MAX, "Запись", true)!;
   await ownGoal(userId, goalId);
-  await prisma.goalEntry.create({ data: { goalId, text } });
+  const goal = await prisma.goal.findUniqueOrThrow({
+    where: { id: goalId },
+    select: { kind: true },
+  });
+
+  let amount: number | null = null;
+  let progress: number | null = null;
+  if (goal.kind === "number" && input.amount !== undefined && input.amount !== null) {
+    amount = Number(input.amount);
+    if (!Number.isFinite(amount) || Math.abs(amount) > TARGET_MAX) {
+      throw new UserError("Некорректное число");
+    }
+  }
+  if (goal.kind === "feeling" && input.progress !== undefined && input.progress !== null) {
+    progress = Math.round(Number(input.progress));
+    if (!Number.isFinite(progress) || progress < 0 || progress > 100) {
+      throw new UserError("Оценка — от 0 до 100%");
+    }
+  }
+
+  await prisma.$transaction([
+    prisma.goalEntry.create({ data: { goalId, text, amount, progress } }),
+    ...(progress !== null
+      ? [prisma.goal.update({ where: { id: goalId }, data: { selfProgress: progress } })]
+      : []),
+  ]);
+  return loadGoal(goalId);
+}
+
+async function setMeasureInner(goalId: string, input: GoalMeasureInput): Promise<GoalDTO> {
+  const userId = await requireUserId();
+  await ownGoal(userId, goalId);
+  const measure = parseMeasure(input);
+  await prisma.goal.update({ where: { id: goalId }, data: measure });
+  return loadGoal(goalId);
+}
+
+async function setSelfProgressInner(goalId: string, raw: number): Promise<GoalDTO> {
+  const userId = await requireUserId();
+  await ownGoal(userId, goalId);
+  const progress = Math.round(Number(raw));
+  if (!Number.isFinite(progress) || progress < 0 || progress > 100) {
+    throw new UserError("Оценка — от 0 до 100%");
+  }
+  await prisma.goal.update({ where: { id: goalId }, data: { selfProgress: progress } });
   return loadGoal(goalId);
 }
 
@@ -236,8 +334,25 @@ export async function deleteGoalStep(stepId: string): Promise<ActionResult<GoalD
   return toResult(() => deleteStepInner(stepId));
 }
 
-export async function addGoalEntry(goalId: string, text: string): Promise<ActionResult<GoalDTO>> {
-  return toResult(() => addEntryInner(goalId, text));
+export async function addGoalEntry(
+  goalId: string,
+  input: GoalEntryInput,
+): Promise<ActionResult<GoalDTO>> {
+  return toResult(() => addEntryInner(goalId, input));
+}
+
+export async function setGoalMeasure(
+  goalId: string,
+  input: GoalMeasureInput,
+): Promise<ActionResult<GoalDTO>> {
+  return toResult(() => setMeasureInner(goalId, input));
+}
+
+export async function setGoalSelfProgress(
+  goalId: string,
+  progress: number,
+): Promise<ActionResult<GoalDTO>> {
+  return toResult(() => setSelfProgressInner(goalId, progress));
 }
 
 export async function deleteGoalEntry(entryId: string): Promise<ActionResult<GoalDTO>> {

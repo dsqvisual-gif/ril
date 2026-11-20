@@ -507,3 +507,123 @@ button:disabled {
     grid-template-columns: 1fr;
   }
 }
+
+/* ---------- how progress is measured ---------- */
+
+.measure {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+.measureRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 0.75rem;
+}
+
+.measureLabel {
+  font-size: 0.8rem;
+  font-weight: 650;
+  color: var(--ink-secondary);
+}
+
+.kinds {
+  display: inline-flex;
+  gap: 0.2rem;
+  padding: 0.2rem;
+  border-radius: 999px;
+  background: #f1f4fa;
+}
+
+.kinds button {
+  padding: 0.35rem 0.8rem;
+  border-radius: 999px;
+  font-size: 0.85rem;
+  font-weight: 650;
+  color: var(--ink-secondary);
+}
+
+.kinds .kindActive {
+  background: #fff;
+  color: var(--accent);
+  box-shadow: var(--shadow-soft);
+}
+
+.targetRow {
+  display: grid;
+  grid-template-columns: 1fr 2fr;
+  gap: 0.6rem;
+  max-width: 420px;
+}
+
+.measureActions {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.feeling {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.feeling input[type="range"] {
+  flex: 1;
+  accent-color: var(--accent);
+}
+
+.feelingValue {
+  min-width: 3rem;
+  font-weight: 800;
+  color: var(--accent);
+  text-align: right;
+}
+
+.amount {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-weight: 800;
+  color: var(--accent);
+}
+
+.amount .input {
+  width: 5.5rem;
+}
+
+.unit {
+  font-size: 0.85rem;
+  font-weight: 650;
+  color: var(--ink-secondary);
+}
+
+.entryAmount {
+  margin-right: 0.4rem;
+  color: #1f8a3c;
+}
+
+@media (max-width: 600px) {
+  .amount {
+    align-self: flex-start;
+  }
+
+  .feeling {
+    flex-wrap: wrap;
+  }
+
+  .feeling input[type="range"] {
+    flex-basis: 100%;
+  }
+}
+
+.reached {
+  padding: 0.6rem 0.85rem;
+  border-radius: var(--radius-sm);
+  background: rgba(52, 199, 89, 0.12);
+  color: #1f8a3c;
+  font-weight: 700;
+}
