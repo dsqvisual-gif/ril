@@ -20,7 +20,13 @@ import {
   type GoalEntryInput,
   type GoalMeasureInput,
 } from "@/lib/actions/goals";
-import { GOAL_KINDS, formatAmount, goalProgress, type GoalKind } from "@/lib/goal-progress";
+import {
+  GOAL_KINDS,
+  formatAmount,
+  goalProgress,
+  guessTarget,
+  type GoalKind,
+} from "@/lib/goal-progress";
 import { errorText, unwrap, type ActionResult } from "@/lib/action-result";
 import { fromDateKey, todayKey } from "@/lib/dates";
 import { AchievementToast } from "./AchievementToast";
@@ -229,7 +235,33 @@ function NewGoalForm({
   const [target, setTarget] = useState("");
   const [unit, setUnit] = useState("");
   const [more, setMore] = useState(false);
+  // Until the user picks a method by hand, a number in the title selects "Числом".
+  const [kindTouched, setKindTouched] = useState(false);
+  const [guessed, setGuessed] = useState(false);
   const needsTarget = kind === "number" && !(Number(target.replace(",", ".")) > 0);
+
+  function changeTitle(value: string) {
+    setTitle(value);
+    if (kindTouched) return;
+    const guess = guessTarget(value);
+    if (guess) {
+      setKind("number");
+      setTarget(formatAmount(guess.target));
+      setUnit(guess.unit);
+      setGuessed(true);
+    } else if (guessed) {
+      setKind("steps");
+      setTarget("");
+      setUnit("");
+      setGuessed(false);
+    }
+  }
+
+  function pickKind(next: GoalKind) {
+    setKind(next);
+    setKindTouched(true);
+    setGuessed(false);
+  }
 
   async function submit(event: FormEvent) {
     event.preventDefault();
@@ -249,6 +281,8 @@ function NewGoalForm({
       setTarget("");
       setUnit("");
       setKind("steps");
+      setKindTouched(false);
+      setGuessed(false);
       setMore(false);
     }
   }
@@ -259,7 +293,7 @@ function NewGoalForm({
         <input
           className={styles.input}
           value={title}
-          onChange={(e) => setTitle(e.target.value)}
+          onChange={(e) => changeTitle(e.target.value)}
           placeholder="Новая цель — например, «Прочитать 5 книг»"
           maxLength={140}
           aria-label="Цель"
@@ -277,9 +311,16 @@ function NewGoalForm({
         kind={kind}
         target={target}
         unit={unit}
-        onKind={setKind}
-        onTarget={setTarget}
-        onUnit={setUnit}
+        onKind={pickKind}
+        onTarget={(v) => {
+          setTarget(v);
+          setKindTouched(true);
+        }}
+        onUnit={(v) => {
+          setUnit(v);
+          setKindTouched(true);
+        }}
+        note={guessed ? "Нашли число в названии — поправь, если нужно." : undefined}
       />
 
       {more ? (
@@ -321,6 +362,7 @@ function MeasurePicker({
   onKind,
   onTarget,
   onUnit,
+  note,
 }: {
   kind: GoalKind;
   target: string;
@@ -328,6 +370,7 @@ function MeasurePicker({
   onKind: (kind: GoalKind) => void;
   onTarget: (value: string) => void;
   onUnit: (value: string) => void;
+  note?: string;
 }) {
   const hint = GOAL_KINDS.find((k) => k.id === kind)?.hint;
   return (
@@ -349,7 +392,7 @@ function MeasurePicker({
           ))}
         </div>
       </div>
-      <p className={styles.hint}>{hint}</p>
+      <p className={styles.hint}>{note ?? hint}</p>
       {kind === "number" ? (
         <div className={styles.targetRow}>
           <label className={styles.label}>
@@ -422,6 +465,9 @@ function GoalCard({
   const [mTarget, setMTarget] = useState(goal.target ? formatAmount(goal.target) : "");
   const [mUnit, setMUnit] = useState(goal.unit ?? "");
   const progress = goalProgress(goal);
+  // Older goals with a number in the title were created as step goals.
+  const suggestion =
+    goal.kind === "steps" && goal.steps.length === 0 ? guessTarget(goal.title) : null;
   const percent = progress.ratio === null ? null : Math.round(progress.ratio * 100);
   const deadline = deadlineLabel(goal.deadline);
 
@@ -487,6 +533,29 @@ function GoalCard({
       {open ? (
         <div className={styles.cardBody}>
           {goal.why ? <p className={styles.why}>Зачем: {goal.why}</p> : null}
+
+          {suggestion ? (
+            <div className={styles.suggest}>
+              <span>
+                В названии есть число — считать прогресс как «{formatAmount(suggestion.target)}
+                {suggestion.unit ? ` ${suggestion.unit}` : ""}»?
+              </span>
+              <button
+                type="button"
+                className="btn btn-ghost"
+                disabled={busy === `measure:${goal.id}`}
+                onClick={() =>
+                  void onSetMeasure({
+                    kind: "number",
+                    target: suggestion.target,
+                    unit: suggestion.unit,
+                  })
+                }
+              >
+                Считать числом
+              </button>
+            </div>
+          ) : null}
 
           {goal.kind === "feeling" ? (
             <div className={styles.block}>

@@ -61,3 +61,20 @@ function pluralSteps(n: number): string {
   if (mod10 === 1 && mod100 !== 11) return "шага";
   return "шагов";
 }
+
+const ADJECTIVE_END = /(ых|их|ые|ие)$/;
+
+/**
+ * Reads a countable target from a goal title: «Прочитать 5 книг» → 5 книг,
+ * «Выучить 300 английских слов» → 300 английских слов. Null when there is no number.
+ */
+export function guessTarget(title: string): { target: number; unit: string } | null {
+  const match = title.match(/(\d+(?:[.,]\d+)?)\s*([^\d\s.,!?;:()«»"]+)?(?:\s+([^\d\s.,!?;:()«»"]+))?/u);
+  if (!match) return null;
+  const target = Number(match[1].replace(",", "."));
+  if (!Number.isFinite(target) || target <= 0) return null;
+  const first = match[2]?.toLowerCase() ?? "";
+  const second = match[3]?.toLowerCase() ?? "";
+  const unit = (ADJECTIVE_END.test(first) && second ? `${first} ${second}` : first).slice(0, 20);
+  return { target, unit };
+}
