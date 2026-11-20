@@ -190,7 +190,6 @@ async function interpretVoiceInner(
         {
           OR: [{ userId }, { shares: { some: { userId } } }],
         },
-        { NOT: { viewerStates: { some: { userId, archived: true } } } },
       ],
     },
     select: { id: true, userId: true, title: true, date: true, time: true },

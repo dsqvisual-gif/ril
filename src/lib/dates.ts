@@ -83,9 +83,12 @@ export function resolveToday(input: string, serverToday = todayKey()): string {
   return diff <= 1 ? input : serverToday;
 }
 
+/** After this many days in the plan an open task asks: keep it or delete it? */
+export const LINGER_DAYS = 3;
+
 export function isLingering(originDate: string, keptOn: string | null, today: string): boolean {
   const anchor = keptOn && keptOn > originDate ? keptOn : originDate;
-  return differenceInCalendarDays(fromDateKey(today), fromDateKey(anchor)) >= 2;
+  return differenceInCalendarDays(fromDateKey(today), fromDateKey(anchor)) >= LINGER_DAYS;
 }
 
 export function isSameMonth(a: string, b: string): boolean {

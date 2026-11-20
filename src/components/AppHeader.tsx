@@ -9,11 +9,10 @@ import styles from "./AppHeader.module.css";
 
 const LINKS = [
   { href: "/app", label: "Планер" },
+  { href: "/app/goals", label: "Цели" },
   { href: "/app/friends", label: "Друзья" },
   { href: "/app/achievements", label: "Достижения" },
 ];
-
-const ARCHIVE = { href: "/app/archive", label: "Архив" };
 
 type Props = {
   name: string;
@@ -57,12 +56,6 @@ export function AppHeader({ name, username }: Props) {
             {link.label}
           </Link>
         ))}
-        <Link
-          href={ARCHIVE.href}
-          className={`${styles.quiet} ${isActive(ARCHIVE.href, pathname) ? styles.quietActive : ""}`}
-        >
-          {ARCHIVE.label}
-        </Link>
       </nav>
       <div className={styles.user}>
         <span className={styles.identity}>
@@ -99,13 +92,6 @@ export function AppHeader({ name, username }: Props) {
               {link.label}
             </Link>
           ))}
-          <Link
-            href={ARCHIVE.href}
-            className={`${styles.sheetQuiet} ${isActive(ARCHIVE.href, pathname) ? styles.sheetQuietActive : ""}`}
-            onClick={() => setOpen(false)}
-          >
-            {ARCHIVE.label}
-          </Link>
           <div className={styles.sheetUser}>
             <span className={styles.personName}>{name}</span>
             {username ? <span className={styles.nick}>@{username}</span> : null}

@@ -12,7 +12,6 @@ import { DoneCelebration } from "./DoneCelebration";
 import { StalePrompt } from "./StalePrompt";
 import { VoiceMic } from "./VoiceMic";
 import {
-  archiveTask,
   createTask,
   deleteTask,
   keepTask,
@@ -271,7 +270,6 @@ export function PlannerApp({ initialTasks, initialDate, friends }: Props) {
         tasks={prompts}
         busyId={busyId}
         onKeep={(id) => void answer(id, () => keepTask(id, todayKey()), false)}
-        onArchive={(id) => void answer(id, () => archiveTask(id), true)}
         onDelete={(id) => void answer(id, () => removeTask(id), true)}
       />
 

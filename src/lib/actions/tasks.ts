@@ -34,17 +34,6 @@ export type TaskDTO = {
   partners: PersonDTO[];
 };
 
-export type ArchivedTask = {
-  id: string;
-  title: string;
-  date: string;
-  originDate: string;
-  important: boolean;
-  urgent: boolean;
-  viewerIsOwner: boolean;
-  archivedAt: string | null;
-};
-
 export type CreateTaskInput = {
   title: string;
   date: string;
@@ -69,7 +58,7 @@ function includeFor(userId: string) {
     },
     viewerStates: {
       where: { userId },
-      select: { keptOn: true, archived: true, archivedAt: true },
+      select: { keptOn: true },
     },
   };
 }
@@ -86,7 +75,7 @@ type TaskRecord = {
   done: boolean;
   user: { id: string; name: string; username: string | null };
   shares: { user: { id: string; name: string; username: string | null } }[];
-  viewerStates: { keptOn: string | null; archived: boolean; archivedAt: Date | null }[];
+  viewerStates: { keptOn: string | null }[];
 };
 
 function personFrom(user: {
@@ -179,13 +168,10 @@ function accessWhere(userId: string) {
   };
 }
 
+// The archive is gone: every task the user can see is open to them,
+// including ones archived before, which now come back with a keep/delete prompt.
 function openWhere(userId: string) {
-  return {
-    AND: [
-      accessWhere(userId),
-      { NOT: { viewerStates: { some: { userId, archived: true } } } },
-    ],
-  };
+  return accessWhere(userId);
 }
 
 function completedWhere(userId: string) {
@@ -278,15 +264,11 @@ export async function settleOpenTasks(rawToday: string): Promise<SettleResult> {
   return { prompts: await present(lingering, userId), moved: overdue.length > 0 };
 }
 
-async function touchViewer(
-  userId: string,
-  taskId: string,
-  data: { keptOn?: string | null; archived: boolean; archivedAt: Date | null },
-) {
+async function touchViewer(userId: string, taskId: string, data: { keptOn: string }) {
   await prisma.taskViewerState.upsert({
     where: { userId_taskId: { userId, taskId } },
-    create: { userId, taskId, ...data },
-    update: data,
+    create: { userId, taskId, ...data, archived: false, archivedAt: null },
+    update: { ...data, archived: false, archivedAt: null },
   });
 }
 
@@ -298,71 +280,7 @@ async function keepTaskInner(taskId: string, rawToday: string): Promise<void> {
     select: { id: true },
   });
   if (!task) throw new UserError("Задача не найдена");
-  await touchViewer(userId, task.id, { keptOn: today, archived: false, archivedAt: null });
-}
-
-async function archiveTaskInner(taskId: string): Promise<void> {
-  const userId = await requireUserId();
-  const task = await prisma.task.findFirst({
-    where: { id: taskId, ...accessWhere(userId) },
-    select: { id: true },
-  });
-  if (!task) throw new UserError("Задача не найдена");
-  await touchViewer(userId, task.id, { archived: true, archivedAt: new Date() });
-}
-
-async function restoreTaskInner(taskId: string, rawToday: string): Promise<void> {
-  const userId = await requireUserId();
-  const today = resolveToday(rawToday);
-  const [state, task] = await Promise.all([
-    prisma.taskViewerState.findUnique({ where: { userId_taskId: { userId, taskId } } }),
-    prisma.task.findFirst({ where: { id: taskId, ...accessWhere(userId) } }),
-  ]);
-  if (!state?.archived) throw new UserError("В архиве нет этой задачи");
-  if (!task) throw new UserError("Задача больше недоступна");
-
-  await prisma.taskViewerState.update({
-    where: { id: state.id },
-    data: { archived: false, archivedAt: null, keptOn: today },
-  });
-  if (!task.done && task.date < today) {
-    await prisma.task.update({
-      where: { id: task.id },
-      data: { date: today, originDate: task.originDate ?? task.date },
-    });
-  }
-}
-
-export async function listArchivedTasks(): Promise<ArchivedTask[]> {
-  const userId = await requireUserId();
-  const rows = await prisma.taskViewerState.findMany({
-    where: { userId, archived: true },
-    orderBy: { archivedAt: "desc" },
-    include: {
-      task: {
-        select: {
-          id: true,
-          userId: true,
-          title: true,
-          date: true,
-          originDate: true,
-          important: true,
-          urgent: true,
-        },
-      },
-    },
-  });
-
-  return rows.map((row) => ({
-    id: row.task.id,
-    title: row.task.title,
-    date: row.task.date,
-    originDate: row.task.originDate || row.task.date,
-    important: row.task.important,
-    urgent: row.task.urgent,
-    viewerIsOwner: row.task.userId === userId,
-    archivedAt: row.archivedAt ? row.archivedAt.toISOString() : null,
-  }));
+  await touchViewer(userId, task.id, { keptOn: today });
 }
 
 async function acceptedFriendIds(userId: string, ids: string[]): Promise<Set<string>> {
@@ -502,14 +420,6 @@ async function deleteTaskInner(taskId: string): Promise<void> {
 
 export async function keepTask(taskId: string, rawToday: string): Promise<ActionResult<void>> {
   return toResult(() => keepTaskInner(taskId, rawToday));
-}
-
-export async function archiveTask(taskId: string): Promise<ActionResult<void>> {
-  return toResult(() => archiveTaskInner(taskId));
-}
-
-export async function restoreTask(taskId: string, rawToday: string): Promise<ActionResult<void>> {
-  return toResult(() => restoreTaskInner(taskId, rawToday));
 }
 
 export async function createTask(input: CreateTaskInput): Promise<ActionResult<TaskDTO>> {

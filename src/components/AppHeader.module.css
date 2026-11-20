@@ -39,26 +39,6 @@
   color: var(--accent);
 }
 
-.quiet,
-.sheetQuiet {
-  font-size: 0.75rem;
-  font-weight: 650;
-  color: var(--ink-tertiary);
-}
-
-.nav a.quiet {
-  margin-left: 0.25rem;
-  padding: 0.45rem 0.4rem;
-}
-
-.nav a.quiet:hover,
-.nav a.quietActive,
-.sheet a.sheetQuiet:hover,
-.sheet a.sheetQuietActive {
-  background: transparent;
-  color: var(--accent);
-}
-
 .user {
   display: flex;
   align-items: center;
@@ -175,11 +155,6 @@
     padding: 0.9rem 1rem;
     font-size: 1.05rem;
     border-radius: 14px;
-  }
-
-  .sheet a.sheetQuiet {
-    padding: 0.2rem 1rem 0.55rem;
-    font-size: 0.82rem;
   }
 
   .sheetUser {
