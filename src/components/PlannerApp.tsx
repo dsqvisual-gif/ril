@@ -33,7 +33,7 @@ import {
   fromDateKey,
   toDateKey,
 } from "@/lib/dates";
-import { ACHIEVEMENTS } from "@/lib/achievements";
+import { describeUnlocked } from "@/lib/achievements";
 import styles from "./PlannerApp.module.css";
 
 type Props = {
@@ -47,15 +47,20 @@ export function PlannerApp({ initialTasks, initialDate, friends }: Props) {
   const [date, setDate] = useState(initialDate);
   const [tasks, setTasks] = useState(initialTasks);
   const [busyId, setBusyId] = useState<string | null>(null);
-  const [toast, setToastState] = useState<{ text: string; kind: "achievement" | "error" } | null>(
-    null,
-  );
+  const [toast, setToastState] = useState<{
+    text: string;
+    kind: "achievement" | "error";
+    icon?: string;
+  } | null>(null);
   // Plain messages are errors; unlocked achievements go through `celebrate`.
   const setToast = useCallback(
     (text: string | null) => setToastState(text ? { text, kind: "error" } : null),
     [],
   );
-  const celebrate = (text: string) => setToastState({ text, kind: "achievement" });
+  const celebrate = (codes: string[]) => {
+    const unlocked = describeUnlocked(codes);
+    if (unlocked) setToastState({ text: unlocked.title, icon: unlocked.icon, kind: "achievement" });
+  };
   const [cheerKey, setCheerKey] = useState(0);
   const [prompts, setPrompts] = useState<TaskDTO[]>([]);
   const dismissed = useRef(new Set<string>());
@@ -186,10 +191,7 @@ export function PlannerApp({ initialTasks, initialDate, friends }: Props) {
       const result = unwrap(await toggleTask(id));
       setTasks((prev) => prev.map((t) => (t.id === id ? result.task : t)));
       if (result.newlyUnlocked.length > 0) {
-        const first = ACHIEVEMENTS.find(
-          (a) => a.code === result.newlyUnlocked[0],
-        );
-        celebrate(first?.title ?? "Достижение разблокировано");
+        celebrate(result.newlyUnlocked);
       }
     } catch (err) {
       setTasks((prev) => prev.map((t) => (t.id === id ? before : t)));
@@ -306,6 +308,7 @@ export function PlannerApp({ initialTasks, initialDate, friends }: Props) {
       {toast ? (
         <AchievementToast
           kind={toast.kind}
+          icon={toast.icon}
           title={toast.text}
           onClose={() => setToastState(null)}
         />

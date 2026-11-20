@@ -18,6 +18,7 @@ import {
 import { errorText, unwrap, type ActionResult } from "@/lib/action-result";
 import { fromDateKey, todayKey } from "@/lib/dates";
 import { AchievementToast } from "./AchievementToast";
+import { useAwards } from "./useAwards";
 import { DoneCelebration } from "./DoneCelebration";
 import { MascotIdle } from "./MascotIdle";
 import styles from "./GoalsBoard.module.css";
@@ -31,6 +32,7 @@ export function GoalsBoard({ initialGoals }: Props) {
   const [openId, setOpenId] = useState<string | null>(initialGoals.find((g) => !g.doneAt)?.id ?? null);
   const [busy, setBusy] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
+  const awards = useAwards();
   const [cheerKey, setCheerKey] = useState(0);
   const dismissCheer = useCallback(() => setCheerKey(0), []);
 
@@ -51,6 +53,7 @@ export function GoalsBoard({ initialGoals }: Props) {
     try {
       const goal = unwrap(await action());
       replace(goal);
+      awards.claim();
       return goal;
     } catch (err) {
       setToast(errorText(err, fallback));
@@ -66,6 +69,7 @@ export function GoalsBoard({ initialGoals }: Props) {
       const goal = unwrap(await createGoal(input));
       setGoals((prev) => [goal, ...prev]);
       setOpenId(goal.id);
+      awards.claim();
       return true;
     } catch (err) {
       setToast(errorText(err, "Не удалось добавить цель"));
@@ -190,7 +194,11 @@ export function GoalsBoard({ initialGoals }: Props) {
       ) : null}
 
       {cheerKey > 0 ? <DoneCelebration key={cheerKey} onDone={dismissCheer} /> : null}
-      {toast ? <AchievementToast kind="error" title={toast} onClose={() => setToast(null)} /> : null}
+      {toast ? (
+        <AchievementToast kind="error" title={toast} onClose={() => setToast(null)} />
+      ) : (
+        awards.toast
+      )}
     </section>
   );
 }

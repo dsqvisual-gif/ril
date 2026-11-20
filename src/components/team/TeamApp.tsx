@@ -11,6 +11,7 @@ import {
 } from "@/lib/actions/company";
 import { errorText, unwrap, type ActionResult } from "@/lib/action-result";
 import { AchievementToast } from "../AchievementToast";
+import { useAwards } from "../useAwards";
 import { MascotIdle } from "../MascotIdle";
 import { TeamTasks } from "./TeamTasks";
 import { TeamTimeline } from "./TeamTimeline";
@@ -44,6 +45,7 @@ export function TeamApp({ initialCompanies, initialInvitations, initialView }: P
   const [tab, setTab] = useState<Tab>("tasks");
   const [busy, setBusy] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
+  const awards = useAwards();
   const [creating, setCreating] = useState(initialCompanies.length === 0);
 
   function syncSummary(next: CompanyView) {
@@ -67,6 +69,7 @@ export function TeamApp({ initialCompanies, initialInvitations, initialView }: P
       const next = unwrap(await action());
       setView(next);
       syncSummary(next);
+      awards.claim();
       return true;
     } catch (err) {
       setToast(errorText(err, fallback));
@@ -219,7 +222,11 @@ export function TeamApp({ initialCompanies, initialInvitations, initialView }: P
         <p className={styles.muted}>Выберите компанию выше.</p>
       )}
 
-      {toast ? <AchievementToast kind="error" title={toast} onClose={() => setToast(null)} /> : null}
+      {toast ? (
+        <AchievementToast kind="error" title={toast} onClose={() => setToast(null)} />
+      ) : (
+        awards.toast
+      )}
     </section>
   );
 }

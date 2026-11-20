@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { useAwards } from "./useAwards";
 import { useRouter } from "next/navigation";
 import {
   acceptFriend,
@@ -19,6 +20,7 @@ type Props = {
 
 export function FriendsPanel({ initial }: Props) {
   const router = useRouter();
+  const awards = useAwards();
   const [board, setBoard] = useState(initial);
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<AccountRow[] | null>(null);
@@ -99,6 +101,7 @@ export function FriendsPanel({ initial }: Props) {
         setError(result.error);
         return;
       }
+      awards.claim();
       const q = query.trim().replace(/^@/, "");
       if (q.length >= 2) {
         setResults(await searchAccounts(q));
@@ -212,6 +215,7 @@ export function FriendsPanel({ initial }: Props) {
           </ul>
         )}
       </div>
+      {awards.toast}
     </section>
   );
 }

@@ -5,11 +5,7 @@ import { isLingering, resolveToday } from "@/lib/dates";
 import { requireUserId } from "@/lib/session";
 import { isDateKey, isTimeKey, TASK_TITLE_MAX } from "@/lib/validation";
 import { toResult, UserError, type ActionResult } from "@/lib/action-result";
-import {
-  ACHIEVEMENT_THRESHOLDS,
-  codeForThreshold,
-  type AchievementCode,
-} from "@/lib/achievements";
+import { syncAchievements } from "@/lib/achievement-stats";
 
 export type PersonDTO = {
   id: string;
@@ -45,7 +41,7 @@ export type CreateTaskInput = {
 
 export type ToggleResult = {
   task: TaskDTO;
-  newlyUnlocked: AchievementCode[];
+  newlyUnlocked: string[];
 };
 
 function includeFor(userId: string) {
@@ -179,30 +175,6 @@ function completedWhere(userId: string) {
     done: true,
     ...accessWhere(userId),
   };
-}
-
-async function syncAchievements(
-  userId: string,
-): Promise<{ newlyUnlocked: AchievementCode[]; completedCount: number }> {
-  const [completedCount, existing] = await Promise.all([
-    prisma.task.count({ where: completedWhere(userId) }),
-    prisma.achievementUnlock.findMany({ where: { userId }, select: { code: true } }),
-  ]);
-  const existingSet = new Set(existing.map((a) => a.code));
-
-  const newlyUnlocked = ACHIEVEMENT_THRESHOLDS.filter((threshold) => completedCount >= threshold)
-    .map(codeForThreshold)
-    .filter((code) => !existingSet.has(code));
-
-  if (newlyUnlocked.length > 0) {
-    // skipDuplicates: two quick toggles may race to unlock the same achievement.
-    await prisma.achievementUnlock.createMany({
-      data: newlyUnlocked.map((code) => ({ userId, code })),
-      skipDuplicates: true,
-    });
-  }
-
-  return { newlyUnlocked, completedCount };
 }
 
 export async function completedTaskCount(): Promise<number> {
