@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import Link from "next/link";
+import { Brand } from "@/components/Brand";
 import { AuthForm } from "@/components/AuthForm";
 import { MascotIdle } from "@/components/MascotIdle";
 import { loginAction } from "@/lib/actions/login";
@@ -20,9 +20,7 @@ export default async function LoginPage({
   return (
     <div className={styles.page}>
       <header className={styles.header}>
-        <Link href="/" className={styles.wordmark}>
-          Uspeyka
-        </Link>
+        <Brand href="/" />
       </header>
       <main className={styles.wrap}>
         <MascotIdle className={styles.mascot} />

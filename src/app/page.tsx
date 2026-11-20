@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
+import { Brand } from "@/components/Brand";
 import { redirect } from "next/navigation";
 import { addDays, startOfWeek, isSameDay } from "date-fns";
 import { auth } from "@/lib/auth";
@@ -78,9 +79,7 @@ export default async function HomePage() {
       <div className={styles.blobRight} aria-hidden />
 
       <header className={styles.header}>
-        <Link href="/" className={styles.wordmark}>
-          Uspeyka
-        </Link>
+        <Brand href="/" />
         <div className={styles.headerActions}>
           <Link href="/login" className={styles.btnLight}>
             Войти

@@ -1,9 +1,17 @@
 .link {
   display: inline-flex;
   align-items: center;
-  font-size: 1.45rem;
-  font-weight: 800;
-  letter-spacing: -0.03em;
-  line-height: 1;
-  color: #141b3a;
+  flex: none;
+}
+
+.logo {
+  display: block;
+  height: 38px;
+  width: auto;
+}
+
+@media (max-width: 720px) {
+  .logo {
+    height: 32px;
+  }
 }
