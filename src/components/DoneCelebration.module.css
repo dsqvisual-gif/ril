@@ -5,59 +5,132 @@
   display: grid;
   place-items: center;
   pointer-events: none;
-  background: rgba(255, 255, 255, 0.28);
-  backdrop-filter: blur(4px);
-  animation: overlayLife 2.4s ease forwards;
+  animation: overlayLife 1.1s ease forwards;
+}
+
+.stage {
+  position: relative;
+  width: 150px;
+  padding-top: 60px;
+}
+
+.jump {
+  transform-origin: 50% 100%;
+  animation: jump 1.1s cubic-bezier(0.3, 0.7, 0.4, 1) both;
+}
+
+.mascot {
+  display: block;
+  width: 100%;
+  height: auto;
+  filter: drop-shadow(0 16px 24px rgba(20, 50, 160, 0.25));
+}
+
+.shadow {
+  margin: -6px auto 0;
+  width: 70%;
+  height: 16px;
+  border-radius: 50%;
+  background: radial-gradient(ellipse, rgba(30, 60, 150, 0.28), transparent 70%);
+  animation: shadow 1.1s ease both;
+}
+
+.bubble {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  z-index: 1;
+  padding: 0.45rem 1rem;
+  border-radius: 999px;
+  background: #ffcc1f;
+  color: #141b3a;
+  font-size: 1.35rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  white-space: nowrap;
+  box-shadow: 0 10px 24px rgba(255, 180, 0, 0.35);
+  animation: bubble 1.1s cubic-bezier(0.2, 1.4, 0.4, 1) both;
 }
 
 .burst {
   position: absolute;
-  inset: 0;
+  left: 50%;
+  top: 45%;
 }
 
 .bit {
   position: absolute;
-  left: 50%;
-  top: 46%;
   width: 10px;
   height: 10px;
   border-radius: 999px;
   background: var(--c);
-  animation: fly 0.95s var(--d) cubic-bezier(0.16, 0.84, 0.32, 1) both;
+  animation: fly 0.75s var(--d) cubic-bezier(0.16, 0.84, 0.32, 1) both;
 }
 
 .bit:nth-child(3n) {
-  width: 8px;
+  width: 7px;
   height: 14px;
-  border-radius: 4px;
+  border-radius: 3px;
 }
 
-.card {
-  position: relative;
-  text-align: center;
-  animation: rise 0.55s cubic-bezier(0.16, 1.2, 0.32, 1) both;
+/* squat → jump up → land with a squash → settle */
+@keyframes jump {
+  0% {
+    opacity: 0;
+    transform: translateY(30px) scale(0.85);
+  }
+  12% {
+    opacity: 1;
+    transform: translateY(0) scale(1.06, 0.9);
+  }
+  38% {
+    transform: translateY(-70px) scale(0.95, 1.06) rotate(-4deg);
+  }
+  55% {
+    transform: translateY(-70px) scale(0.97, 1.04) rotate(4deg);
+  }
+  72% {
+    transform: translateY(0) scale(1.08, 0.9);
+  }
+  84% {
+    transform: translateY(0) scale(1);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
 }
 
-.check {
-  width: 96px;
-  height: 96px;
-  margin: 0 auto 1rem;
-  border-radius: 50%;
-  display: grid;
-  place-items: center;
-  background: var(--success);
-  color: #fff;
-  font-size: 3rem;
-  font-weight: 700;
-  box-shadow: 0 16px 40px rgba(52, 199, 89, 0.4);
-  animation: stamp 0.5s cubic-bezier(0.16, 1.4, 0.32, 1) both;
+@keyframes shadow {
+  0%,
+  12%,
+  72%,
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  38%,
+  55% {
+    transform: scale(0.6);
+    opacity: 0.5;
+  }
 }
 
-.title {
-  font-size: clamp(2rem, 5vw, 3rem);
-  font-weight: 800;
-  letter-spacing: -0.045em;
-  color: var(--ink);
+@keyframes bubble {
+  0%,
+  25% {
+    opacity: 0;
+    transform: translate(-50%, 10px) scale(0.5);
+  }
+  42% {
+    opacity: 1;
+    transform: translate(-50%, -30px) scale(1.1);
+  }
+  60%,
+  100% {
+    opacity: 1;
+    transform: translate(-50%, -24px) scale(1);
+  }
 }
 
 @keyframes fly {
@@ -71,36 +144,9 @@
   }
 }
 
-@keyframes stamp {
-  from {
-    opacity: 0;
-    transform: scale(0.4);
-  }
-  to {
-    opacity: 1;
-    transform: scale(1);
-  }
-}
-
-@keyframes rise {
-  from {
-    opacity: 0;
-    transform: translateY(18px) scale(0.96);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0) scale(1);
-  }
-}
-
 @keyframes overlayLife {
-  0% {
-    opacity: 0;
-  }
-  12% {
-    opacity: 1;
-  }
-  72% {
+  0%,
+  85% {
     opacity: 1;
   }
   100% {
@@ -109,14 +155,14 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .overlay,
-  .card,
-  .check,
+  .jump,
+  .shadow,
+  .bubble,
   .bit {
     animation: none;
   }
 
-  .overlay {
-    opacity: 1;
+  .bubble {
+    transform: translate(-50%, -24px);
   }
 }

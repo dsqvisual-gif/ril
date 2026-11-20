@@ -1,3 +1,53 @@
+.wrap {
+  position: relative;
+  isolation: isolate;
+}
+
+.wrapPeek {
+  margin-top: 3.1rem;
+}
+
+/* Mascot head behind the card: antenna, forehead and eyes show above its edge. */
+.peek {
+  position: absolute;
+  z-index: -1;
+  right: 3.2rem;
+  bottom: calc(100% - 6px);
+  width: 76px;
+  height: auto;
+  transform-origin: 50% 100%;
+  filter: drop-shadow(0 -1px 3px rgba(20, 40, 120, 0.22));
+  animation: peek 7s ease-in-out infinite;
+  pointer-events: none;
+}
+
+/* Mostly peeking, tilting the head; once in a while ducks behind the card. */
+@keyframes peek {
+  0%,
+  100% {
+    transform: translateY(0) rotate(-5deg);
+  }
+  35% {
+    transform: translateY(0) rotate(5deg);
+  }
+  60% {
+    transform: translateY(0) rotate(-3deg);
+  }
+  70%,
+  76% {
+    transform: translateY(52px) rotate(0deg);
+  }
+  86% {
+    transform: translateY(0) rotate(-5deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .peek {
+    animation: none;
+  }
+}
+
 .row {
   display: grid;
   grid-template-columns: auto 1fr auto;
