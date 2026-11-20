@@ -174,6 +174,14 @@ async function toggleStepInner(stepId: string): Promise<GoalDTO> {
   return loadGoal(step.goalId);
 }
 
+async function renameStepInner(stepId: string, rawTitle: string): Promise<GoalDTO> {
+  const userId = await requireUserId();
+  const title = cleanText(rawTitle, STEP_TITLE_MAX, "Шаг", true)!;
+  const step = await ownStep(userId, stepId);
+  await prisma.goalStep.update({ where: { id: step.id }, data: { title } });
+  return loadGoal(step.goalId);
+}
+
 async function deleteStepInner(stepId: string): Promise<GoalDTO> {
   const userId = await requireUserId();
   const step = await ownStep(userId, stepId);
@@ -218,6 +226,10 @@ export async function addGoalStep(goalId: string, title: string): Promise<Action
 
 export async function toggleGoalStep(stepId: string): Promise<ActionResult<GoalDTO>> {
   return toResult(() => toggleStepInner(stepId));
+}
+
+export async function renameGoalStep(stepId: string, title: string): Promise<ActionResult<GoalDTO>> {
+  return toResult(() => renameStepInner(stepId, title));
 }
 
 export async function deleteGoalStep(stepId: string): Promise<ActionResult<GoalDTO>> {

@@ -10,6 +10,7 @@ import {
   deleteGoal,
   deleteGoalEntry,
   deleteGoalStep,
+  renameGoalStep,
   setGoalDone,
   toggleGoalStep,
   type GoalDTO,
@@ -134,6 +135,9 @@ export function GoalsBoard({ initialGoals }: Props) {
               onToggleStep={(stepId) =>
                 void run(stepId, () => toggleGoalStep(stepId), "Не удалось отметить шаг")
               }
+              onRenameStep={(stepId, title) =>
+                run(stepId, () => renameGoalStep(stepId, title), "Не удалось изменить шаг")
+              }
               onDeleteStep={(stepId) =>
                 void run(stepId, () => deleteGoalStep(stepId), "Не удалось удалить шаг")
               }
@@ -186,7 +190,7 @@ export function GoalsBoard({ initialGoals }: Props) {
       ) : null}
 
       {cheerKey > 0 ? <DoneCelebration key={cheerKey} onDone={dismissCheer} /> : null}
-      {toast ? <AchievementToast title={toast} onClose={() => setToast(null)} /> : null}
+      {toast ? <AchievementToast kind="error" title={toast} onClose={() => setToast(null)} /> : null}
     </section>
   );
 }
@@ -270,6 +274,7 @@ type CardProps = {
   onDelete: () => void;
   onAddStep: (title: string) => Promise<GoalDTO | null>;
   onToggleStep: (stepId: string) => void;
+  onRenameStep: (stepId: string, title: string) => Promise<GoalDTO | null>;
   onDeleteStep: (stepId: string) => void;
   onAddEntry: (text: string) => Promise<GoalDTO | null>;
   onDeleteEntry: (entryId: string) => void;
@@ -284,6 +289,7 @@ function GoalCard({
   onDelete,
   onAddStep,
   onToggleStep,
+  onRenameStep,
   onDeleteStep,
   onAddEntry,
   onDeleteEntry,
@@ -346,28 +352,16 @@ function GoalCard({
             <h3 className={styles.blockTitle}>Шаги</h3>
             {goal.steps.length > 0 ? (
               <ul className={styles.steps}>
-                {goal.steps.map((s) => (
-                  <li key={s.id} className={s.done ? styles.stepDone : undefined}>
-                    <button
-                      type="button"
-                      className={styles.check}
-                      aria-label={s.done ? "Снять отметку" : "Отметить выполненным"}
-                      disabled={busy === s.id}
-                      onClick={() => onToggleStep(s.id)}
-                    >
-                      {s.done ? "✓" : ""}
-                    </button>
-                    <span className={styles.stepTitle}>{s.title}</span>
-                    <button
-                      type="button"
-                      className={styles.iconBtn}
-                      aria-label="Удалить шаг"
-                      disabled={busy === s.id}
-                      onClick={() => onDeleteStep(s.id)}
-                    >
-                      ×
-                    </button>
-                  </li>
+                {goal.steps.map((s, index) => (
+                  <StepItem
+                    key={s.id}
+                    number={index + 1}
+                    step={s}
+                    busy={busy === s.id}
+                    onToggle={() => onToggleStep(s.id)}
+                    onRename={(title) => onRenameStep(s.id, title)}
+                    onDelete={() => onDeleteStep(s.id)}
+                  />
                 ))}
               </ul>
             ) : (
@@ -378,7 +372,7 @@ function GoalCard({
                 className={styles.input}
                 value={step}
                 onChange={(e) => setStep(e.target.value)}
-                placeholder="Новый шаг"
+                placeholder={`Шаг ${goal.steps.length + 1} — что нужно сделать`}
                 maxLength={140}
                 aria-label="Новый шаг"
               />
@@ -456,6 +450,100 @@ function GoalCard({
         </div>
       ) : null}
     </article>
+  );
+}
+
+function StepItem({
+  number,
+  step,
+  busy,
+  onToggle,
+  onRename,
+  onDelete,
+}: {
+  number: number;
+  step: { id: string; title: string; done: boolean };
+  busy: boolean;
+  onToggle: () => void;
+  onRename: (title: string) => Promise<GoalDTO | null>;
+  onDelete: () => void;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(step.title);
+
+  function startEdit() {
+    setDraft(step.title);
+    setEditing(true);
+  }
+
+  async function save(event?: FormEvent) {
+    event?.preventDefault();
+    const title = draft.trim();
+    if (!title || title === step.title) {
+      setEditing(false);
+      return;
+    }
+    if (await onRename(title)) setEditing(false);
+  }
+
+  return (
+    <li className={step.done ? styles.stepDone : undefined}>
+      <button
+        type="button"
+        className={styles.check}
+        aria-label={step.done ? "Снять отметку" : "Отметить выполненным"}
+        disabled={busy}
+        onClick={onToggle}
+      >
+        {step.done ? "✓" : ""}
+      </button>
+      <span className={styles.stepNum}>Шаг {number}</span>
+      {editing ? (
+        <form className={styles.stepEdit} onSubmit={save}>
+          <input
+            className={styles.input}
+            value={draft}
+            autoFocus
+            maxLength={140}
+            aria-label={`Что за шаг ${number}`}
+            onChange={(e) => setDraft(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Escape") setEditing(false);
+            }}
+            onBlur={() => void save()}
+          />
+        </form>
+      ) : (
+        <button
+          type="button"
+          className={styles.stepTitle}
+          title="Изменить шаг"
+          onClick={startEdit}
+        >
+          {step.title}
+        </button>
+      )}
+      {!editing ? (
+        <button
+          type="button"
+          className={styles.iconBtn}
+          aria-label={`Изменить шаг ${number}`}
+          disabled={busy}
+          onClick={startEdit}
+        >
+          ✎
+        </button>
+      ) : null}
+      <button
+        type="button"
+        className={styles.iconBtn}
+        aria-label={`Удалить шаг ${number}`}
+        disabled={busy}
+        onClick={onDelete}
+      >
+        ×
+      </button>
+    </li>
   );
 }
 
