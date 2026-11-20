@@ -59,21 +59,6 @@ const FEATURES = [
   },
 ];
 
-const STEPS = [
-  {
-    title: "Запиши дела",
-    text: "Текстом или голосом. Время — только если оно действительно важно.",
-  },
-  {
-    title: "Смотри на неделю целиком",
-    text: "Переключайся между днём, неделей и месяцем, чтобы ничего не терялось.",
-  },
-  {
-    title: "Отмечай и расти",
-    text: "Закрывай задачи, собирай достижения и делись планами с друзьями.",
-  },
-];
-
 export default async function HomePage() {
   const session = await auth();
   if (session?.user) {
@@ -98,7 +83,6 @@ export default async function HomePage() {
         </Link>
         <nav className={styles.nav} aria-label="Разделы">
           <a href="#features">Возможности</a>
-          <a href="#how">Как это работает</a>
         </nav>
         <div className={styles.headerActions}>
           <Link href="/login" className={styles.btnLight}>
@@ -133,14 +117,6 @@ export default async function HomePage() {
                   <path d="M5 12h14M13 6l6 6-6 6" />
                 </svg>
               </Link>
-              <a href="#how" className={`${styles.btnLight} ${styles.btnLarge}`}>
-                <span className={styles.play} aria-hidden>
-                  <svg viewBox="0 0 24 24">
-                    <path d="M9 7.5v9l7.5-4.5L9 7.5Z" />
-                  </svg>
-                </span>
-                Как это работает?
-              </a>
             </div>
           </div>
 
@@ -231,21 +207,6 @@ export default async function HomePage() {
           ))}
         </section>
 
-        <section id="how" className={styles.how}>
-          <h2>Как это работает</h2>
-          <ol className={styles.steps}>
-            {STEPS.map((s, i) => (
-              <li key={s.title} className={styles.step}>
-                <span className={styles.stepNum}>{i + 1}</span>
-                <h3>{s.title}</h3>
-                <p>{s.text}</p>
-              </li>
-            ))}
-          </ol>
-          <Link href="/register" className={`${styles.btnPrimary} ${styles.btnLarge}`}>
-            Попробовать бесплатно
-          </Link>
-        </section>
       </main>
 
       <footer className={styles.footer}>
