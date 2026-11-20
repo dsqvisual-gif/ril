@@ -9,7 +9,7 @@ const manrope = Manrope({
 });
 
 export const metadata: Metadata = {
-  title: "PLANO — планер дел",
+  title: "Uspeyka — планер дел",
   description: "Планер на день, неделю и месяц с достижениями",
 };
 
