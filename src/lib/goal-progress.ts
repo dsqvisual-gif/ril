@@ -1,11 +1,6 @@
-export type GoalKind = "steps" | "number" | "feeling";
+export type GoalKind = "number" | "feeling";
 
 export const GOAL_KINDS: { id: GoalKind; label: string; hint: string }[] = [
-  {
-    id: "steps",
-    label: "Шагами",
-    hint: "Разбиваешь цель на шаги, прогресс — доля выполненных шагов.",
-  },
   {
     id: "number",
     label: "Числом",
@@ -19,7 +14,7 @@ export const GOAL_KINDS: { id: GoalKind; label: string; hint: string }[] = [
 ];
 
 export function isGoalKind(value: unknown): value is GoalKind {
-  return value === "steps" || value === "number" || value === "feeling";
+  return value === "number" || value === "feeling";
 }
 
 type ProgressInput = {
@@ -27,7 +22,6 @@ type ProgressInput = {
   target: number | null;
   unit: string | null;
   selfProgress: number | null;
-  steps: { done: boolean }[];
   entries: { amount: number | null }[];
 };
 
@@ -41,26 +35,14 @@ export function goalProgress(goal: ProgressInput): { ratio: number | null; label
       label: `${formatAmount(sum)} из ${formatAmount(goal.target)}${goal.unit ? ` ${goal.unit}` : ""}`,
     };
   }
-  if (goal.kind === "feeling") {
-    if (goal.selfProgress === null) return { ratio: null, label: "оцени, насколько ты ближе" };
-    return { ratio: goal.selfProgress / 100, label: "по твоей оценке" };
-  }
-  const total = goal.steps.length;
-  if (total === 0) return { ratio: null, label: "шагов пока нет" };
-  const done = goal.steps.filter((s) => s.done).length;
-  return { ratio: done / total, label: `${done} из ${total} ${pluralSteps(total)}` };
+  if (goal.selfProgress === null) return { ratio: null, label: "оцени, насколько ты ближе" };
+  return { ratio: goal.selfProgress / 100, label: "по твоей оценке" };
 }
 
 export function formatAmount(n: number): string {
   return Number.isInteger(n) ? String(n) : n.toFixed(1).replace(".", ",");
 }
 
-function pluralSteps(n: number): string {
-  const mod10 = n % 10;
-  const mod100 = n % 100;
-  if (mod10 === 1 && mod100 !== 11) return "шага";
-  return "шагов";
-}
 
 const ADJECTIVE_END = /(ых|их|ые|ие)$/;
 

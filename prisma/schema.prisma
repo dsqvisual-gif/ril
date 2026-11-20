@@ -118,8 +118,8 @@ model Goal {
   title     String
   why       String?
   deadline  String?
-  /// How progress is measured: steps | number | feeling.
-  kind      String      @default("steps")
+  /// How progress is measured: number | feeling ("steps" is legacy, converted on read).
+  kind      String      @default("feeling")
   /// For kind "number": how much to reach, and in what (книг, км, слов).
   target    Float?
   unit      String?

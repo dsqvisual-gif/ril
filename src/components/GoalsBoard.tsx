@@ -231,7 +231,7 @@ function NewGoalForm({
   const [title, setTitle] = useState("");
   const [why, setWhy] = useState("");
   const [deadline, setDeadline] = useState("");
-  const [kind, setKind] = useState<GoalKind>("steps");
+  const [kind, setKind] = useState<GoalKind>("feeling");
   const [target, setTarget] = useState("");
   const [unit, setUnit] = useState("");
   const [more, setMore] = useState(false);
@@ -250,7 +250,7 @@ function NewGoalForm({
       setUnit(guess.unit);
       setGuessed(true);
     } else if (guessed) {
-      setKind("steps");
+      setKind("feeling");
       setTarget("");
       setUnit("");
       setGuessed(false);
@@ -280,7 +280,7 @@ function NewGoalForm({
       setDeadline("");
       setTarget("");
       setUnit("");
-      setKind("steps");
+      setKind("feeling");
       setKindTouched(false);
       setGuessed(false);
       setMore(false);
@@ -465,9 +465,11 @@ function GoalCard({
   const [mTarget, setMTarget] = useState(goal.target ? formatAmount(goal.target) : "");
   const [mUnit, setMUnit] = useState(goal.unit ?? "");
   const progress = goalProgress(goal);
-  // Older goals with a number in the title were created as step goals.
+  // A countable goal that is still on self-estimate: offer to count it.
   const suggestion =
-    goal.kind === "steps" && goal.steps.length === 0 ? guessTarget(goal.title) : null;
+    goal.kind === "feeling" && goal.selfProgress === null && goal.entries.length === 0
+      ? guessTarget(goal.title)
+      : null;
   const percent = progress.ratio === null ? null : Math.round(progress.ratio * 100);
   const deadline = deadlineLabel(goal.deadline);
 
@@ -589,7 +591,7 @@ function GoalCard({
 
           <div className={styles.block}>
             <h3 className={styles.blockTitle}>
-              {goal.kind === "steps" ? "Шаги" : "Шаги — план, на процент не влияют"}
+              План по шагам
             </h3>
             {goal.steps.length > 0 ? (
               <ul className={styles.steps}>
@@ -607,9 +609,7 @@ function GoalCard({
               </ul>
             ) : (
               <p className={styles.hint}>
-                {goal.kind === "steps"
-                  ? "Разбей цель на понятные шаги — по ним считается прогресс."
-                  : "Можно набросать план по шагам — для себя."}
+                Для себя: разбей цель на шаги и отмечай, что готово. На процент не влияет.
               </p>
             )}
             <form className={styles.inlineForm} onSubmit={submitStep}>

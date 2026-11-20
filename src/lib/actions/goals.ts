@@ -4,7 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { requireUserId } from "@/lib/session";
 import { isDateKey } from "@/lib/validation";
 import { toResult, UserError, type ActionResult } from "@/lib/action-result";
-import { isGoalKind, type GoalKind } from "@/lib/goal-progress";
+import { guessTarget, isGoalKind, type GoalKind } from "@/lib/goal-progress";
 
 export type GoalStepDTO = {
   id: string;
@@ -94,7 +94,7 @@ function toDTO(goal: GoalRecord): GoalDTO {
     title: goal.title,
     why: goal.why,
     deadline: goal.deadline,
-    kind: isGoalKind(goal.kind) ? goal.kind : "steps",
+    kind: isGoalKind(goal.kind) ? goal.kind : "feeling",
     target: goal.target,
     unit: goal.unit,
     selfProgress: goal.selfProgress,
@@ -126,7 +126,7 @@ function parseMeasure(input: Partial<GoalMeasureInput>): {
   target: number | null;
   unit: string | null;
 } {
-  const kind = input.kind ?? "steps";
+  const kind = input.kind ?? "feeling";
   if (!isGoalKind(kind)) throw new UserError("Неизвестный способ измерения");
   if (kind !== "number") return { kind, target: null, unit: null };
   const target = Number(input.target);
@@ -154,8 +154,35 @@ async function loadGoal(goalId: string): Promise<GoalDTO> {
   return toDTO(goal);
 }
 
+// Progress "by steps" is gone. Goals that used it move to a number when
+// their title has one and no steps were added, else to a self-estimate
+// seeded with the share of steps already done.
+async function retireStepGoals(userId: string): Promise<void> {
+  const old = await prisma.goal.findMany({
+    where: { userId, kind: "steps" },
+    select: { id: true, title: true, steps: { select: { done: true } } },
+  });
+  await Promise.all(
+    old.map((goal) => {
+      const guess = goal.steps.length === 0 ? guessTarget(goal.title) : null;
+      const done = goal.steps.filter((s) => s.done).length;
+      return prisma.goal.update({
+        where: { id: goal.id },
+        data: guess
+          ? { kind: "number", target: guess.target, unit: guess.unit || null }
+          : {
+              kind: "feeling",
+              selfProgress:
+                goal.steps.length > 0 ? Math.round((done / goal.steps.length) * 100) : null,
+            },
+      });
+    }),
+  );
+}
+
 export async function listGoals(): Promise<GoalDTO[]> {
   const userId = await requireUserId();
+  await retireStepGoals(userId);
   const goals = await prisma.goal.findMany({
     where: { userId },
     include: goalInclude,
