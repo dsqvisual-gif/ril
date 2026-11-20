@@ -10,6 +10,7 @@ import styles from "./AppHeader.module.css";
 const LINKS = [
   { href: "/app", label: "Планер" },
   { href: "/app/goals", label: "Цели" },
+  { href: "/app/team", label: "Команда" },
   { href: "/app/friends", label: "Друзья" },
   { href: "/app/achievements", label: "Достижения" },
 ];

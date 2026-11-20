@@ -26,6 +26,9 @@ model User {
   taskShares   TaskShare[]
   taskViews    TaskViewerState[]
   goals        Goal[]
+  companies    CompanyMember[]
+  companyTasksAssigned CompanyTask[] @relation("CompanyTaskAssignee")
+  companyTasksCreated  CompanyTask[] @relation("CompanyTaskCreator")
 
   @@index([usernameKey])
 }
@@ -145,4 +148,52 @@ model GoalEntry {
   createdAt DateTime @default(now())
 
   @@index([goalId])
+}
+
+/// A team workspace. `plan` is "free" for now; paid plans come later.
+model Company {
+  id        String          @id @default(cuid())
+  name      String
+  plan      String          @default("free")
+  createdAt DateTime        @default(now())
+  members   CompanyMember[]
+  tasks     CompanyTask[]
+}
+
+/// role: owner | admin | member. status: invited | active.
+model CompanyMember {
+  id          String   @id @default(cuid())
+  companyId   String
+  userId      String
+  role        String   @default("member")
+  status      String   @default("invited")
+  invitedById String?
+  createdAt   DateTime @default(now())
+  company     Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([companyId, userId])
+  @@index([userId, status])
+}
+
+/// status: todo | doing | done.
+model CompanyTask {
+  id          String    @id @default(cuid())
+  companyId   String
+  title       String
+  note        String?
+  assigneeId  String?
+  creatorId   String
+  startDate   String?
+  deadline    String?
+  status      String    @default("todo")
+  important   Boolean   @default(false)
+  doneAt      DateTime?
+  createdAt   DateTime  @default(now())
+  company     Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  assignee    User?     @relation("CompanyTaskAssignee", fields: [assigneeId], references: [id], onDelete: SetNull)
+  creator     User      @relation("CompanyTaskCreator", fields: [creatorId], references: [id], onDelete: Cascade)
+
+  @@index([companyId, status])
+  @@index([assigneeId, status])
 }
