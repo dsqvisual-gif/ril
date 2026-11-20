@@ -47,7 +47,15 @@ export function PlannerApp({ initialTasks, initialDate, friends }: Props) {
   const [date, setDate] = useState(initialDate);
   const [tasks, setTasks] = useState(initialTasks);
   const [busyId, setBusyId] = useState<string | null>(null);
-  const [toast, setToast] = useState<string | null>(null);
+  const [toast, setToastState] = useState<{ text: string; kind: "achievement" | "error" } | null>(
+    null,
+  );
+  // Plain messages are errors; unlocked achievements go through `celebrate`.
+  const setToast = useCallback(
+    (text: string | null) => setToastState(text ? { text, kind: "error" } : null),
+    [],
+  );
+  const celebrate = (text: string) => setToastState({ text, kind: "achievement" });
   const [cheerKey, setCheerKey] = useState(0);
   const [prompts, setPrompts] = useState<TaskDTO[]>([]);
   const dismissed = useRef(new Set<string>());
@@ -107,7 +115,7 @@ export function PlannerApp({ initialTasks, initialDate, friends }: Props) {
         setToast("Не удалось перенести старые дела");
       }
     })();
-  }, [loadRange]);
+  }, [loadRange, setToast]);
 
   // The server already rendered the initial day; fetch only when the range changes.
   const loadedRange = useRef(initialDate);
@@ -181,7 +189,7 @@ export function PlannerApp({ initialTasks, initialDate, friends }: Props) {
         const first = ACHIEVEMENTS.find(
           (a) => a.code === result.newlyUnlocked[0],
         );
-        setToast(first?.title ?? "Достижение разблокировано");
+        celebrate(first?.title ?? "Достижение разблокировано");
       }
     } catch (err) {
       setTasks((prev) => prev.map((t) => (t.id === id ? before : t)));
@@ -296,7 +304,11 @@ export function PlannerApp({ initialTasks, initialDate, friends }: Props) {
       {cheerKey > 0 ? <DoneCelebration key={cheerKey} onDone={dismissCheer} /> : null}
 
       {toast ? (
-        <AchievementToast title={toast} onClose={() => setToast(null)} />
+        <AchievementToast
+          kind={toast.kind}
+          title={toast.text}
+          onClose={() => setToastState(null)}
+        />
       ) : null}
 
       <VoiceMic
