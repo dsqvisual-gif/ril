@@ -81,9 +81,6 @@ export default async function HomePage() {
         <Link href="/" className={styles.wordmark}>
           Uspeyka
         </Link>
-        <nav className={styles.nav} aria-label="Разделы">
-          <a href="#features">Возможности</a>
-        </nav>
         <div className={styles.headerActions}>
           <Link href="/login" className={styles.btnLight}>
             Войти

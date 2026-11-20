@@ -50,6 +50,7 @@
   padding: 1.4rem 0;
   display: flex;
   align-items: center;
+  justify-content: space-between;
   gap: 2rem;
 }
 
@@ -58,23 +59,6 @@
   font-weight: 800;
   letter-spacing: -0.03em;
   color: var(--navy);
-}
-
-.nav {
-  display: flex;
-  gap: 2.25rem;
-  margin: 0 auto;
-  font-weight: 600;
-  font-size: 0.98rem;
-}
-
-.nav a {
-  color: #2b3352;
-  transition: color 0.15s ease;
-}
-
-.nav a:hover {
-  color: var(--blue);
 }
 
 .headerActions {
@@ -612,13 +596,8 @@
 }
 
 @media (max-width: 720px) {
-  .nav,
   .hideMobile {
     display: none;
-  }
-
-  .header {
-    justify-content: space-between;
   }
 
   .visual {
