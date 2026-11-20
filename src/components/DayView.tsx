@@ -4,7 +4,13 @@ import { format } from "date-fns";
 import { ru } from "date-fns/locale";
 import { TaskRow } from "./TaskRow";
 import { AddTaskForm } from "./AddTaskForm";
-import { formatDayTitle, fromDateKey, plannerDayHeading, relativeDayName } from "@/lib/dates";
+import {
+  formatDayTitle,
+  fromDateKey,
+  plannerDayHeading,
+  relativeDayName,
+  todayKey,
+} from "@/lib/dates";
 import type { CreateTaskInput, TaskDTO } from "@/lib/actions/tasks";
 import type { FriendOption } from "@/lib/actions/friends";
 import styles from "./DayView.module.css";
@@ -41,11 +47,7 @@ export function DayView({
             ? formatDayTitle(date)
             : format(fromDateKey(date), "EEEE", { locale: ru })}
         </p>
-        <p className={styles.meta}>
-          {open.length === 0
-            ? "Все сделано — отличный день"
-            : `${open.length} ${plural(open.length)} в плане`}
-        </p>
+        <p className={styles.meta}>{summary(date, open.length, done.length)}</p>
       </header>
 
       <div className={styles.list}>
@@ -72,6 +74,20 @@ export function DayView({
       <AddTaskForm date={date} friends={friends} onCreate={onCreate} />
     </section>
   );
+}
+
+function summary(date: string, open: number, done: number): string {
+  const today = todayKey();
+  if (open === 0 && done === 0) {
+    return date < today
+      ? "В этот день ничего не было запланировано"
+      : "Пока пусто — запиши дела, чтобы ничего не забыть";
+  }
+  if (open === 0) {
+    return date === today ? "На сегодня всё выполнено 🎉" : "На этот день всё выполнено 🎉";
+  }
+  const left = `${open} ${plural(open)} в плане`;
+  return done > 0 ? `${left} · ${done} уже сделано` : left;
 }
 
 function plural(n: number): string {
