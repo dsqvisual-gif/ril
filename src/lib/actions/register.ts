@@ -4,7 +4,8 @@ import bcrypt from "bcryptjs";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { signIn } from "@/lib/auth";
-import { normalizeUsername, usernameError } from "@/lib/username";
+import { normalizeUsername, usernameError, usernameKey } from "@/lib/username";
+import { usernameTakenError } from "@/lib/username-check";
 import { AuthError } from "next-auth";
 import { headers } from "next/headers";
 import { clientIp, rateLimit } from "@/lib/rate-limit";
@@ -45,16 +46,14 @@ export async function registerAction(
     return { error: "Пользователь с таким email уже есть" };
   }
 
-  const existingNick = await prisma.user.findUnique({ where: { username } });
-  if (existingNick) {
-    return { error: "Такой ник уже занят" };
-  }
+  const nickTaken = await usernameTakenError(username);
+  if (nickTaken) return { error: nickTaken };
 
   const passwordHash = await bcrypt.hash(password, 10);
 
   try {
     await prisma.user.create({
-      data: { name, username, email, passwordHash },
+      data: { name, username, usernameKey: usernameKey(username), email, passwordHash },
     });
   } catch (error) {
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
