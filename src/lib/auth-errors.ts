@@ -7,7 +7,7 @@ export function authErrorMessage(error?: string): string | null {
     return "Google не разрешил вход.";
   }
   if (error === "OAuthAccountNotLinked") {
-    return "Этот email уже есть в PLANO. Войдите паролем или ником — Google подключится к тому же аккаунту.";
+    return "Этот email уже есть в Uspeyka. Войдите паролем или ником — Google подключится к тому же аккаунту.";
   }
   return "Не удалось войти через Google. Попробуйте ещё раз.";
 }
