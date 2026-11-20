@@ -46,7 +46,7 @@ export function plannerDayHeading(key: string, today = todayKey()): string {
 }
 
 export function formatShortDay(key: string): string {
-  return format(fromDateKey(key), "EEE d", { locale: ru });
+  return format(fromDateKey(key), "EEEEEE d", { locale: ru });
 }
 
 export function formatMonthTitle(key: string): string {
