@@ -6,6 +6,7 @@ import { fromDateKey, resolveToday, shiftDateKey } from "@/lib/dates";
 import { prisma } from "@/lib/prisma";
 import { requireUserId } from "@/lib/session";
 import { createTask, deleteTask, type TaskDTO } from "@/lib/actions/tasks";
+import { listAcceptedFriends, type FriendOption } from "@/lib/actions/friends";
 import { toResult, unwrap, UserError, type ActionResult } from "@/lib/action-result";
 import { rateLimit } from "@/lib/rate-limit";
 import { isDateKey, isTimeKey, TASK_TITLE_MAX } from "@/lib/validation";
@@ -16,6 +17,8 @@ export type VoiceAdd = {
   time: string | null;
   important: boolean;
   urgent: boolean;
+  /** Friends to share the task with. */
+  with: { id: string; name: string }[];
 };
 
 export type VoiceRemove = {
@@ -67,8 +70,14 @@ function asRecord(value: unknown): Record<string, unknown> | null {
   return value as Record<string, unknown>;
 }
 
-function readPlan(raw: unknown, tasks: ListedTask[], focusDate: string): VoicePlan {
+function readPlan(
+  raw: unknown,
+  tasks: ListedTask[],
+  friends: FriendOption[],
+  focusDate: string,
+): VoicePlan {
   const body = asRecord(raw) ?? {};
+  const friendById = new Map(friends.map((f) => [f.id, f]));
   const byId = new Map(tasks.map((task) => [task.id, task]));
   const add: VoiceAdd[] = [];
   const remove: VoiceRemove[] = [];
@@ -79,12 +88,21 @@ function readPlan(raw: unknown, tasks: ListedTask[], focusDate: string): VoicePl
     const row = asRecord(item);
     const title = cleanTitle(row?.title ?? item);
     if (!title) continue;
+    const withIds = Array.isArray(row?.with) ? row.with : [];
+    const partners = [
+      ...new Set(withIds.filter((id): id is string => typeof id === "string")),
+    ]
+      .map((id) => friendById.get(id))
+      .filter((f): f is FriendOption => Boolean(f))
+      .slice(0, 10)
+      .map((f) => ({ id: f.id, name: f.name }));
     add.push({
       title,
       date: cleanDate(row?.date, focusDate),
       time: cleanTime(row?.time),
       important: row?.important === true,
       urgent: row?.urgent === true,
+      with: partners,
     });
   }
 
@@ -182,7 +200,8 @@ async function interpretVoiceInner(
   const from = shiftDateKey(today, -21);
   const to = shiftDateKey(today, 60);
 
-  const rows = await prisma.task.findMany({
+  const [rows, friends] = await Promise.all([
+    prisma.task.findMany({
     where: {
       done: false,
       date: { gte: from, lte: to },
@@ -195,7 +214,9 @@ async function interpretVoiceInner(
     select: { id: true, userId: true, title: true, date: true, time: true },
     orderBy: [{ date: "asc" }, { time: "asc" }],
     take: 40,
-  });
+    }),
+    listAcceptedFriends(),
+  ]);
 
   const tasks: ListedTask[] = rows.map((row) => ({
     id: row.id,
@@ -227,16 +248,21 @@ async function interpretVoiceInner(
     days,
     "Текущие невыполненные дела:",
     JSON.stringify(catalog),
+    "Друзья пользователя (name — как он их называет, username — ник):",
+    JSON.stringify(
+      friends.map((f) => ({ id: f.id, name: f.name, username: f.username })),
+    ),
     `Фраза: ${JSON.stringify(heard)}`,
     "Формат:",
-    '{"add":[{"title":"","date":"YYYY-MM-DD","time":"HH:MM или null","important":false,"urgent":false}],"remove":["id"],"note":null}',
+    '{"add":[{"title":"","date":"YYYY-MM-DD","time":"HH:MM или null","important":false,"urgent":false,"with":["id друга"]}],"remove":["id"],"note":null}',
+    "with — id друзей из списка, если человек говорит сделать дело вместе с кем-то: «с Мариной», «с @marina», «вместе с Артёмом», «позвать Диму». Узнавай друга по имени в любом падеже, уменьшительной форме или нику. Имя друга не включай в title. Если такого друга нет в списке — with пустой, а в note напиши, кого не нашёл.",
     "add — новые дела. remove — только id дел с canDelete true, которые человек просит удалить, отменить или убрать.",
     "Не удаляй дело, если человек его не назвал. Не выдумывай id. important только если сказано «важно», urgent только если сказано «срочно».",
     "note — короткая фраза по-русски, если команда неясна, иначе null.",
   ].join("\n");
 
   const parsed = await askGemini(prompt, key);
-  const plan = readPlan(parsed, tasks, focus);
+  const plan = readPlan(parsed, tasks, friends, focus);
   if (plan.add.length === 0 && plan.remove.length === 0) {
     return {
       ...plan,
@@ -261,6 +287,7 @@ async function applyVoicePlanInner(plan: VoicePlan): Promise<{
           time: item.time,
           important: item.important,
           urgent: item.urgent,
+          friendIds: (item.with ?? []).map((person) => person.id),
         }),
       ),
     );

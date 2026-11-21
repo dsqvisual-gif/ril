@@ -270,6 +270,7 @@ export function VoiceMic({ focusDate, onApplied }: Props) {
                         {dayLabel(item.date, today)}
                         {item.time ? ` · ${item.time}` : ""}
                         {item.urgent ? " · срочно" : item.important ? " · важно" : ""}
+                        {item.with?.length ? ` · с ${item.with.map((p) => p.name).join(", ")}` : ""}
                       </small>
                     </li>
                   ))}
