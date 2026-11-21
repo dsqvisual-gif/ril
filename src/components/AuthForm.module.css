@@ -95,3 +95,13 @@
   border-radius: 12px;
   padding: 0.75rem 0.9rem;
 }
+
+.legal {
+  text-align: center;
+  font-size: 0.8rem;
+  color: var(--ink-tertiary);
+}
+
+.legal a {
+  color: var(--accent);
+}

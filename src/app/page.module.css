@@ -491,6 +491,8 @@
   margin: 0 auto;
   padding: 1.5rem 0 2rem;
   display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem 1.5rem;
   justify-content: space-between;
   border-top: 1px solid rgba(20, 27, 58, 0.08);
   font-size: 0.92rem;
@@ -499,6 +501,12 @@
 
 .footer a:hover {
   color: var(--blue);
+}
+
+.footerLinks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem 1.25rem;
 }
 
 /* ---------- animation ---------- */

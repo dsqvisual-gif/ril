@@ -86,6 +86,16 @@ export function AuthForm({ mode, action, notice }: Props) {
         <GoogleButton />
       </form>
 
+      {mode === "register" ? (
+        <p className={styles.legal}>
+          Регистрируясь, вы соглашаетесь с{" "}
+          <Link href="/privacy" target="_blank">
+            политикой конфиденциальности
+          </Link>
+          .
+        </p>
+      ) : null}
+
       <p className={styles.switch}>
         {mode === "login" ? (
           <>

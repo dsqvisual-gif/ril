@@ -207,7 +207,10 @@ export default async function HomePage() {
 
       <footer className={styles.footer}>
         <span>© {today.getFullYear()} Uspeyka</span>
-        <Link href="/login">Войти</Link>
+        <nav className={styles.footerLinks} aria-label="Документы">
+          <Link href="/privacy">Политика конфиденциальности</Link>
+          <Link href="/security">Безопасность</Link>
+        </nav>
       </footer>
     </div>
   );
