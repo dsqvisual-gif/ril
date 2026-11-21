@@ -1,17 +1,54 @@
 "use client";
 
+import { useState } from "react";
 import Image from "next/image";
 import styles from "./TaskRow.module.css";
-import type { TaskDTO } from "@/lib/actions/tasks";
+import { TaskEditor } from "./AddTaskForm";
+import type { CreateTaskInput, TaskDTO } from "@/lib/actions/tasks";
+import type { FriendOption } from "@/lib/actions/friends";
 
 type Props = {
   task: TaskDTO;
+  friends: FriendOption[];
   onToggle: (id: string) => void;
   onDelete: (id: string) => void;
+  onUpdate: (id: string, input: CreateTaskInput) => Promise<void>;
   busy?: boolean;
 };
 
-export function TaskRow({ task, onToggle, onDelete, busy }: Props) {
+export function TaskRow({
+  task,
+  friends,
+  onToggle,
+  onDelete,
+  onUpdate,
+  busy,
+}: Props) {
+  const [editing, setEditing] = useState(false);
+
+  if (editing) {
+    return (
+      <TaskEditor
+        friends={friends}
+        withDate
+        initial={{
+          title: task.title,
+          date: task.date,
+          time: task.time,
+          important: task.important,
+          urgent: task.urgent,
+          friendIds: task.partners.map((person) => person.id),
+        }}
+        submitLabel="Сохранить"
+        onSubmit={async (input) => {
+          await onUpdate(task.id, input);
+          setEditing(false);
+        }}
+        onCancel={() => setEditing(false)}
+      />
+    );
+  }
+
   const withWhom = task.partners.map((person) => person.name).join(", ");
 
   const tone = [
@@ -77,15 +114,27 @@ export function TaskRow({ task, onToggle, onDelete, busy }: Props) {
           ) : null}
         </div>
         {task.viewerIsOwner ? (
-          <button
-            type="button"
-            className={styles.delete}
-            aria-label="Удалить"
-            disabled={busy}
-            onClick={() => onDelete(task.id)}
-          >
-            ×
-          </button>
+          <div className={styles.actions}>
+            <button
+              type="button"
+              className={styles.edit}
+              aria-label="Изменить"
+              title="Изменить"
+              disabled={busy}
+              onClick={() => setEditing(true)}
+            >
+              ✎
+            </button>
+            <button
+              type="button"
+              className={styles.delete}
+              aria-label="Удалить"
+              disabled={busy}
+              onClick={() => onDelete(task.id)}
+            >
+              ×
+            </button>
+          </div>
         ) : (
           <span />
         )}

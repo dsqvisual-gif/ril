@@ -18,6 +18,7 @@ import {
   removeTask,
   settleOpenTasks,
   toggleTask,
+  updateTask,
   type CreateTaskInput,
   type TaskDTO,
 } from "@/lib/actions/tasks";
@@ -170,6 +171,13 @@ export function PlannerApp({ initialTasks, initialDate, friends }: Props) {
     setTasks((prev) => [...prev, task]);
   }
 
+  async function handleUpdate(id: string, input: CreateTaskInput) {
+    const task = unwrap(await updateTask(id, input));
+    setTasks((prev) => prev.map((t) => (t.id === id ? task : t)));
+    // A task moved to another day no longer lingers.
+    setPrompts((prev) => prev.filter((t) => t.id !== id));
+  }
+
   const dismissCheer = useCallback(() => setCheerKey(0), []);
 
   // Toggle and delete update the screen first and reconcile with the server after.
@@ -291,6 +299,7 @@ export function PlannerApp({ initialTasks, initialDate, friends }: Props) {
           onCreate={handleCreate}
           onToggle={handleToggle}
           onDelete={handleDelete}
+          onUpdate={handleUpdate}
           busyId={busyId}
         />
       ) : null}

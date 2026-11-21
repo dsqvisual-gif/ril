@@ -22,6 +22,7 @@ type Props = {
   onCreate: (input: CreateTaskInput) => Promise<void>;
   onToggle: (id: string) => void;
   onDelete: (id: string) => void;
+  onUpdate: (id: string, input: CreateTaskInput) => Promise<void>;
   busyId?: string | null;
 };
 
@@ -32,6 +33,7 @@ export function DayView({
   onCreate,
   onToggle,
   onDelete,
+  onUpdate,
   busyId,
 }: Props) {
   const open = tasks.filter((t) => !t.done);
@@ -55,8 +57,10 @@ export function DayView({
           <TaskRow
             key={task.id}
             task={task}
+            friends={friends}
             onToggle={onToggle}
             onDelete={onDelete}
+            onUpdate={onUpdate}
             busy={busyId === task.id}
           />
         ))}
@@ -64,8 +68,10 @@ export function DayView({
           <TaskRow
             key={task.id}
             task={task}
+            friends={friends}
             onToggle={onToggle}
             onDelete={onDelete}
+            onUpdate={onUpdate}
             busy={busyId === task.id}
           />
         ))}

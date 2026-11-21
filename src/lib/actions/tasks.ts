@@ -322,6 +322,55 @@ async function createTaskInner(input: CreateTaskInput): Promise<TaskDTO> {
   return dto;
 }
 
+async function updateTaskInner(taskId: string, input: CreateTaskInput): Promise<TaskDTO> {
+  const userId = await requireUserId();
+  const task = await prisma.task.findFirst({
+    where: { id: taskId, ...accessWhere(userId) },
+    select: { id: true, userId: true, date: true, shares: { select: { userId: true } } },
+  });
+  if (!task) throw new UserError("Задача не найдена");
+  if (task.userId !== userId) throw new UserError("Изменить совместное дело может только автор");
+
+  const title = input.title.trim();
+  if (!title) throw new UserError("Название обязательно");
+  if (title.length > TASK_TITLE_MAX) throw new UserError(`Название длиннее ${TASK_TITLE_MAX} символов`);
+  if (!isDateKey(input.date)) throw new UserError("Некорректная дата");
+  let time: string | null = null;
+  if (input.time && input.time.trim()) {
+    if (!isTimeKey(input.time.trim())) throw new UserError("Некорректное время");
+    time = input.time.trim();
+  }
+
+  const friendIds = [...new Set((input.friendIds ?? []).filter((id) => id && id !== userId))];
+  const current = new Set(task.shares.map((share) => share.userId));
+  const added = friendIds.filter((id) => !current.has(id));
+  const allowed = await acceptedFriendIds(userId, added);
+  if (added.some((id) => !allowed.has(id))) {
+    throw new UserError("Совместное дело можно добавить только с друзьями");
+  }
+  const removed = [...current].filter((id) => !friendIds.includes(id));
+
+  // Moving a task to another day is a fresh plan, so it stops counting as carried over.
+  const moved = input.date !== task.date;
+  const updated = await prisma.task.update({
+    where: { id: task.id },
+    data: {
+      title,
+      time,
+      important: Boolean(input.important),
+      urgent: Boolean(input.urgent),
+      ...(moved ? { date: input.date, originDate: input.date } : {}),
+      shares: {
+        deleteMany: removed.length > 0 ? { userId: { in: removed } } : [],
+        create: added.map((friendId) => ({ userId: friendId })),
+      },
+    },
+    include: includeFor(userId),
+  });
+  const [dto] = await present([updated], userId);
+  return dto;
+}
+
 async function toggleTaskInner(taskId: string): Promise<ToggleResult> {
   const userId = await requireUserId();
   const task = await prisma.task.findFirst({
@@ -396,6 +445,13 @@ export async function keepTask(taskId: string, rawToday: string): Promise<Action
 
 export async function createTask(input: CreateTaskInput): Promise<ActionResult<TaskDTO>> {
   return toResult(() => createTaskInner(input));
+}
+
+export async function updateTask(
+  taskId: string,
+  input: CreateTaskInput,
+): Promise<ActionResult<TaskDTO>> {
+  return toResult(() => updateTaskInner(taskId, input));
 }
 
 export async function toggleTask(taskId: string): Promise<ActionResult<ToggleResult>> {

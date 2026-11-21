@@ -178,6 +178,26 @@
   transition: background 0.15s ease, color 0.15s ease;
 }
 
+.actions {
+  display: flex;
+  align-items: center;
+}
+
+.edit {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  color: var(--ink-tertiary);
+  font-size: 1rem;
+  line-height: 1;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.edit:hover {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
 .delete:hover {
   background: rgba(255, 59, 48, 0.08);
   color: var(--danger);

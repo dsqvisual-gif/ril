@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, FormEvent } from "react";
+import { useId, useState, type FormEvent } from "react";
 import Link from "next/link";
 import styles from "./AddTaskForm.module.css";
 import type { CreateTaskInput } from "@/lib/actions/tasks";
@@ -15,49 +15,7 @@ type Props = {
 };
 
 export function AddTaskForm({ date, friends, onCreate }: Props) {
-  const [title, setTitle] = useState("");
-  const [time, setTime] = useState("");
-  const [withTime, setWithTime] = useState(false);
-  const [friendIds, setFriendIds] = useState<string[]>([]);
-  const [important, setImportant] = useState(false);
-  const [urgent, setUrgent] = useState(false);
   const [open, setOpen] = useState(false);
-  const [pending, setPending] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  function toggleFriend(id: string) {
-    setFriendIds((prev) =>
-      prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id],
-    );
-  }
-
-  async function handleSubmit(e: FormEvent) {
-    e.preventDefault();
-    if (!title.trim() || pending) return;
-    setPending(true);
-    setError(null);
-    try {
-      await onCreate({
-        title: title.trim(),
-        date,
-        time: withTime && time ? time : null,
-        important,
-        urgent,
-        friendIds,
-      });
-      setTitle("");
-      setTime("");
-      setWithTime(false);
-      setImportant(false);
-      setUrgent(false);
-      setFriendIds([]);
-      setOpen(false);
-    } catch (err) {
-      setError(errorText(err, "Не удалось сохранить"));
-    } finally {
-      setPending(false);
-    }
-  }
 
   if (!open) {
     return (
@@ -69,11 +27,82 @@ export function AddTaskForm({ date, friends, onCreate }: Props) {
   }
 
   return (
+    <TaskEditor
+      friends={friends}
+      initial={{ date }}
+      submitLabel="Добавить"
+      onSubmit={async (input) => {
+        await onCreate(input);
+        setOpen(false);
+      }}
+      onCancel={() => setOpen(false)}
+    />
+  );
+}
+
+type EditorProps = {
+  friends: FriendOption[];
+  initial: Partial<CreateTaskInput> & { date: string };
+  /** Shows a date field, for moving a task to another day. */
+  withDate?: boolean;
+  submitLabel: string;
+  onSubmit: (input: CreateTaskInput) => Promise<void>;
+  onCancel: () => void;
+};
+
+/** Fields of a task, shared by the "new task" form and task editing. */
+export function TaskEditor({
+  friends,
+  initial,
+  withDate = false,
+  submitLabel,
+  onSubmit,
+  onCancel,
+}: EditorProps) {
+  const id = useId();
+  const [title, setTitle] = useState(initial.title ?? "");
+  const [date, setDate] = useState(initial.date);
+  const [time, setTime] = useState(initial.time ?? "");
+  const [withTime, setWithTime] = useState(Boolean(initial.time));
+  const [friendIds, setFriendIds] = useState<string[]>(initial.friendIds ?? []);
+  const [important, setImportant] = useState(Boolean(initial.important));
+  const [urgent, setUrgent] = useState(Boolean(initial.urgent));
+  const [pending, setPending] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  function toggleFriend(friendId: string) {
+    setFriendIds((prev) =>
+      prev.includes(friendId) ? prev.filter((item) => item !== friendId) : [...prev, friendId],
+    );
+  }
+
+  async function handleSubmit(e: FormEvent) {
+    e.preventDefault();
+    if (!title.trim() || pending) return;
+    setPending(true);
+    setError(null);
+    try {
+      await onSubmit({
+        title: title.trim(),
+        date,
+        time: withTime && time ? time : null,
+        important,
+        urgent,
+        friendIds,
+      });
+    } catch (err) {
+      setError(errorText(err, "Не удалось сохранить"));
+    } finally {
+      setPending(false);
+    }
+  }
+
+  return (
     <form className={styles.form} onSubmit={handleSubmit}>
       <div className="field">
-        <label htmlFor="task-title">Что сделать</label>
+        <label htmlFor={`${id}-title`}>Что сделать</label>
         <input
-          id="task-title"
+          id={`${id}-title`}
           value={title}
           onChange={(e) => setTitle(e.target.value)}
           placeholder="Например: созвон с командой"
@@ -82,6 +111,19 @@ export function AddTaskForm({ date, friends, onCreate }: Props) {
           required
         />
       </div>
+
+      {withDate ? (
+        <div className="field">
+          <label htmlFor={`${id}-date`}>День</label>
+          <input
+            id={`${id}-date`}
+            type="date"
+            value={date}
+            onChange={(e) => setDate(e.target.value || date)}
+            required
+          />
+        </div>
+      ) : null}
 
       <div className={styles.flags}>
         <button
@@ -113,9 +155,9 @@ export function AddTaskForm({ date, friends, onCreate }: Props) {
 
       {withTime ? (
         <div className="field">
-          <label htmlFor="task-time">Время</label>
+          <label htmlFor={`${id}-time`}>Время</label>
           <input
-            id="task-time"
+            id={`${id}-time`}
             type="time"
             value={time}
             onChange={(e) => setTime(e.target.value)}
@@ -152,16 +194,11 @@ export function AddTaskForm({ date, friends, onCreate }: Props) {
       {error ? <p className="form-error">{error}</p> : null}
 
       <div className={styles.actions}>
-        <button
-          type="button"
-          className="btn btn-ghost"
-          onClick={() => setOpen(false)}
-          disabled={pending}
-        >
+        <button type="button" className="btn btn-ghost" onClick={onCancel} disabled={pending}>
           Отмена
         </button>
         <button type="submit" className="btn btn-primary" disabled={pending}>
-          {pending ? "Сохраняю…" : "Добавить"}
+          {pending ? "Сохраняю…" : submitLabel}
         </button>
       </div>
     </form>
