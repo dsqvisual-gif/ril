@@ -18,6 +18,8 @@ const LINKS = [
 type Props = {
   name: string;
   username: string | null;
+  /** Shows the link to the admin page. */
+  isAdmin?: boolean;
 };
 
 function isActive(href: string, pathname: string) {
@@ -25,7 +27,8 @@ function isActive(href: string, pathname: string) {
   return pathname === href || pathname.startsWith(`${href}/`);
 }
 
-export function AppHeader({ name, username }: Props) {
+export function AppHeader({ name, username, isAdmin = false }: Props) {
+  const links = isAdmin ? [...LINKS, { href: "/app/admin", label: "Админ" }] : LINKS;
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
   const [openedOn, setOpenedOn] = useState(pathname);
@@ -48,7 +51,7 @@ export function AppHeader({ name, username }: Props) {
     <header className={styles.header}>
       <Brand href="/app" />
       <nav className={styles.nav} aria-label="Разделы">
-        {LINKS.map((link) => (
+        {links.map((link) => (
           <Link
             key={link.href}
             href={link.href}
@@ -83,7 +86,7 @@ export function AppHeader({ name, username }: Props) {
       </button>
       {open ? (
         <div id="app-menu" className={styles.sheet}>
-          {LINKS.map((link) => (
+          {links.map((link) => (
             <Link
               key={link.href}
               href={link.href}

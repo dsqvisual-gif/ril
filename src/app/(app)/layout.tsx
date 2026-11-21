@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import { NicknameGate } from "@/components/NicknameGate";
 import { suggestUsername } from "@/lib/username";
+import { isAdminEmail } from "@/lib/admin";
 
 export default async function AppLayout({
   children,
@@ -20,7 +21,11 @@ export default async function AppLayout({
 
   return (
     <div className="app-shell">
-      <AppHeader name={name} username={user.username ?? null} />
+      <AppHeader
+        name={name}
+        username={user.username ?? null}
+        isAdmin={isAdminEmail(user.email)}
+      />
       {user.username ? (
         children
       ) : (
