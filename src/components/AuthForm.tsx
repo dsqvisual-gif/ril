@@ -6,6 +6,7 @@ import Link from "next/link";
 import { googleSignInAction } from "@/lib/actions/google";
 import { confirmRegistration } from "@/lib/actions/email-auth";
 import { CodeStep } from "./CodeStep";
+import { PasswordInput } from "./PasswordInput";
 import styles from "./AuthForm.module.css";
 
 type State = { error?: string; email?: string };
@@ -95,10 +96,9 @@ export function AuthForm({ mode, action, notice }: Props) {
 
         <div className="field">
           <label htmlFor="password">Пароль</label>
-          <input
+          <PasswordInput
             id="password"
             name="password"
-            type="password"
             required
             minLength={6}
             autoComplete={mode === "login" ? "current-password" : "new-password"}

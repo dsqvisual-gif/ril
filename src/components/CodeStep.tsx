@@ -4,6 +4,7 @@ import { useActionState, useEffect, useState } from "react";
 import type { CodeFlowState } from "@/lib/actions/email-auth";
 import { resendCode } from "@/lib/actions/email-auth";
 import type { CodePurpose } from "@/lib/email";
+import { PasswordInput } from "./PasswordInput";
 import styles from "./AuthForm.module.css";
 
 type Props = {
@@ -62,10 +63,9 @@ export function CodeStep({ email, purpose, action, submitLabel, withPassword, on
         {withPassword ? (
           <div className="field">
             <label htmlFor="new-password">Новый пароль</label>
-            <input
+            <PasswordInput
               id="new-password"
               name="password"
-              type="password"
               minLength={6}
               autoComplete="new-password"
               required
