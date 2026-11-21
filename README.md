@@ -17,7 +17,12 @@
 DATABASE_URL="postgresql://..."
 AUTH_SECRET="..."          # npx auth secret
 GEMINI_API_KEY="..."       # необязательно, нужен для голосового ввода
+RESEND_API_KEY="re_..."    # письма с кодами; без него в разработке код пишется в лог сервера
+ADMIN_EMAILS="you@mail.com" # кто видит /app/admin (через запятую)
 ```
+
+На Vercel эти же переменные задаются в проекте → Environment Variables. Изменения
+переменных применяются со следующей сборки: при пуше в `main` она запускается сама.
 
 ```bash
 npm install
