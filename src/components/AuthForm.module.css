@@ -105,3 +105,41 @@
 .legal a {
   color: var(--accent);
 }
+
+.code {
+  font-size: 1.6rem !important;
+  font-weight: 800;
+  letter-spacing: 0.5em;
+  text-align: center;
+}
+
+.codeLinks {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 0.5rem;
+  font-size: 0.88rem;
+}
+
+.codeLinks button {
+  color: var(--accent);
+  font-weight: 650;
+}
+
+.codeLinks button:disabled {
+  color: var(--ink-tertiary);
+  cursor: default;
+}
+
+.extraLinks {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 0.5rem;
+  font-size: 0.88rem;
+}
+
+.extraLinks a {
+  color: var(--accent);
+  font-weight: 650;
+}

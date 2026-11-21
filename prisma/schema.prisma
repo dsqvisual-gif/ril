@@ -18,6 +18,8 @@ model User {
   // Lookalike-free form of username (see src/lib/username.ts) to block confusable nicknames.
   usernameKey  String?
   image        String?
+  /// Set once the user proved they own the email (a code from it, or Google).
+  emailVerified DateTime?
   createdAt    DateTime            @default(now())
   tasks        Task[]
   achievements AchievementUnlock[]
@@ -207,4 +209,19 @@ model CompanyTask {
 
   @@index([companyId, status])
   @@index([assigneeId, status])
+}
+
+/// One-time code sent by email. purpose: register | login | reset.
+/// For "register" the pending account (name, username, passwordHash) waits in payload.
+model EmailCode {
+  id        String   @id @default(cuid())
+  email     String
+  purpose   String
+  codeHash  String
+  attempts  Int      @default(0)
+  payload   Json?
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([email, purpose])
 }

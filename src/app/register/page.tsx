@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { Brand } from "@/components/Brand";
 import { AuthForm } from "@/components/AuthForm";
 import { MascotIdle } from "@/components/MascotIdle";
-import { registerAction } from "@/lib/actions/register";
+import { startRegistration } from "@/lib/actions/email-auth";
 import { authErrorMessage } from "@/lib/auth-errors";
 import styles from "../auth.module.css";
 
@@ -26,7 +26,7 @@ export default async function RegisterPage({
         <MascotIdle className={styles.mascot} />
         <AuthForm
           mode="register"
-          action={registerAction}
+          action={startRegistration}
           notice={authErrorMessage(params.error)}
         />
       </main>

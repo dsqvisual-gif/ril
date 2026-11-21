@@ -23,7 +23,8 @@ export const authConfig = {
       const isLoggedIn = !!auth?.user;
       const path = request.nextUrl.pathname;
       const isApp = path.startsWith("/app");
-      const isAuthPage = path === "/login" || path === "/register";
+      const isAuthPage =
+        path === "/login" || path === "/register" || path === "/login/code" || path === "/forgot";
 
       if (isApp) return isLoggedIn;
       if (isAuthPage && isLoggedIn) {

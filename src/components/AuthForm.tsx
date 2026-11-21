@@ -1,12 +1,14 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
 import { useFormStatus } from "react-dom";
 import Link from "next/link";
 import { googleSignInAction } from "@/lib/actions/google";
+import { confirmRegistration } from "@/lib/actions/email-auth";
+import { CodeStep } from "./CodeStep";
 import styles from "./AuthForm.module.css";
 
-type State = { error?: string };
+type State = { error?: string; email?: string };
 
 type Props = {
   mode: "login" | "register";
@@ -16,22 +18,52 @@ type Props = {
 
 export function AuthForm({ mode, action, notice }: Props) {
   const [state, formAction, pending] = useActionState(action, {});
+  // Values typed before a code was sent, to refill the form after "Изменить почту".
+  const [values, setValues] = useState<Record<string, string>>({});
+  const [backFrom, setBackFrom] = useState<string | null>(null);
+
+  if (mode === "register" && state.email && state.email !== backFrom) {
+    return (
+      <CodeStep
+        email={state.email}
+        purpose="register"
+        action={confirmRegistration}
+        submitLabel="Подтвердить и войти"
+        onBack={() => setBackFrom(state.email ?? null)}
+      />
+    );
+  }
 
   return (
     <div className={styles.form}>
-      <form action={formAction} className={styles.fields}>
+      <form
+        action={formAction}
+        className={styles.fields}
+        onSubmit={(e) => {
+          const data = new FormData(e.currentTarget);
+          setValues(Object.fromEntries([...data.entries()].map(([k, v]) => [k, String(v)])));
+          setBackFrom(null);
+        }}
+      >
         <h1 className={styles.title}>{mode === "login" ? "Вход" : "Регистрация"}</h1>
         <p className={styles.sub}>
           {mode === "login"
             ? "Войдите по email, нику или через Google"
-            : "Имя, ник и пароль — или сразу через Google"}
+            : "Имя, ник, почта и пароль — на почту придёт код. Или сразу через Google"}
         </p>
 
         {mode === "register" ? (
           <>
             <div className="field">
               <label htmlFor="name">Имя</label>
-              <input id="name" name="name" required minLength={2} autoComplete="name" />
+              <input
+                id="name"
+                name="name"
+                required
+                minLength={2}
+                autoComplete="name"
+                defaultValue={values.name}
+              />
             </div>
             <div className="field">
               <label htmlFor="username">Ник</label>
@@ -43,6 +75,7 @@ export function AuthForm({ mode, action, notice }: Props) {
                 maxLength={20}
                 autoComplete="username"
                 placeholder="данил"
+                defaultValue={values.username}
               />
             </div>
           </>
@@ -56,6 +89,7 @@ export function AuthForm({ mode, action, notice }: Props) {
             type={mode === "login" ? "text" : "email"}
             required
             autoComplete={mode === "login" ? "username" : "email"}
+            defaultValue={mode === "login" ? undefined : values.email}
           />
         </div>
 
@@ -75,8 +109,15 @@ export function AuthForm({ mode, action, notice }: Props) {
         {notice ? <p className={styles.note}>{notice}</p> : null}
 
         <button type="submit" className={`btn btn-primary ${styles.submit}`} disabled={pending}>
-          {pending ? "Подождите…" : mode === "login" ? "Войти" : "Создать аккаунт"}
+          {pending ? "Подождите…" : mode === "login" ? "Войти" : "Получить код на почту"}
         </button>
+
+        {mode === "login" ? (
+          <div className={styles.extraLinks}>
+            <Link href="/login/code">Войти по коду из письма</Link>
+            <Link href="/forgot">Забыли пароль?</Link>
+          </div>
+        ) : null}
       </form>
 
       <div className={styles.or}>или</div>

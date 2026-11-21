@@ -27,7 +27,7 @@ export async function loginAction(
   });
 
   if (user && !user.passwordHash) {
-    return { error: "Этот аккаунт входит через Google" };
+    return { error: "У этого аккаунта нет пароля — войдите через Google или по коду из письма" };
   }
 
   try {

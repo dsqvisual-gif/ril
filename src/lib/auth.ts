@@ -5,9 +5,74 @@ import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
 import { authConfig } from "@/lib/auth.config";
 import { clientIp, rateLimit } from "@/lib/rate-limit";
+import { consumeCode, normalizeEmail, type CodeCheck } from "@/lib/email-codes";
+import { usernameKey } from "@/lib/username";
 
 export class LoginRateLimited extends CredentialsSignin {
   code = "rate_limited";
+}
+
+/** A one-time email code was not accepted; `code` holds the reason. */
+export class EmailCodeRejected extends CredentialsSignin {
+  constructor(reason: Exclude<CodeCheck, { ok: true }>["reason"] | "taken" | "no_user") {
+    super();
+    this.code = reason;
+  }
+}
+
+type PendingAccount = { name: string; username: string; passwordHash: string };
+
+function pendingAccount(payload: unknown): PendingAccount | null {
+  if (!payload || typeof payload !== "object") return null;
+  const p = payload as Record<string, unknown>;
+  if (typeof p.name !== "string" || typeof p.username !== "string") return null;
+  if (typeof p.passwordHash !== "string") return null;
+  return { name: p.name, username: p.username, passwordHash: p.passwordHash };
+}
+
+/** Signs in with a code from email: finishes a registration or logs into an account. */
+async function authorizeEmailCode(credentials: Partial<Record<string, unknown>> | undefined) {
+  const email = typeof credentials?.email === "string" ? normalizeEmail(credentials.email) : "";
+  const code = typeof credentials?.code === "string" ? credentials.code : "";
+  const purpose = credentials?.purpose === "register" ? "register" : "login";
+  if (!email || !code) return null;
+
+  const check = await consumeCode(email, purpose, code);
+  if (!check.ok) throw new EmailCodeRejected(check.reason);
+
+  if (purpose === "register") {
+    const pending = pendingAccount(check.payload);
+    if (!pending) throw new EmailCodeRejected("missing");
+    const clash = await prisma.user.findFirst({
+      where: {
+        OR: [
+          { email },
+          { username: pending.username },
+          { usernameKey: usernameKey(pending.username) },
+        ],
+      },
+      select: { id: true },
+    });
+    if (clash) throw new EmailCodeRejected("taken");
+    const user = await prisma.user.create({
+      data: {
+        email,
+        name: pending.name,
+        username: pending.username,
+        usernameKey: usernameKey(pending.username),
+        passwordHash: pending.passwordHash,
+        emailVerified: new Date(),
+      },
+    });
+    return { id: user.id, email: user.email, name: user.name, username: user.username };
+  }
+
+  const user = await prisma.user.findUnique({ where: { email } });
+  if (!user) throw new EmailCodeRejected("no_user");
+  if (!user.emailVerified) {
+    await prisma.user.update({ where: { id: user.id }, data: { emailVerified: new Date() } });
+  }
+  return { id: user.id, email: user.email, name: user.name, username: user.username };
 }
 
 function googleProfile(profile: unknown): {
@@ -41,10 +106,15 @@ async function upsertGoogleUser(input: {
 }) {
   const existing = await prisma.user.findUnique({ where: { email: input.email } });
   if (existing) {
-    if (input.image && input.image !== existing.image) {
+    // Google only signs in verified emails, so this also proves ownership.
+    const imageChanged = Boolean(input.image) && input.image !== existing.image;
+    if (imageChanged || !existing.emailVerified) {
       return prisma.user.update({
         where: { id: existing.id },
-        data: { image: input.image },
+        data: {
+          ...(imageChanged ? { image: input.image } : {}),
+          emailVerified: existing.emailVerified ?? new Date(),
+        },
       });
     }
     return existing;
@@ -55,6 +125,7 @@ async function upsertGoogleUser(input: {
       email: input.email,
       name: input.name.slice(0, 80),
       image: input.image,
+      emailVerified: new Date(),
     },
   });
 }
@@ -122,6 +193,16 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           username: user.username,
         };
       },
+    }),
+    Credentials({
+      id: "email-code",
+      name: "Код из письма",
+      credentials: {
+        email: { label: "Email", type: "email" },
+        code: { label: "Код", type: "text" },
+        purpose: { label: "Цель", type: "text" },
+      },
+      authorize: authorizeEmailCode,
     }),
     ...(google
       ? [
