@@ -62,10 +62,10 @@ export function AppHeader({ name, username, isAdmin = false }: Props) {
         ))}
       </nav>
       <div className={styles.user}>
-        <span className={styles.identity}>
+        <Link href="/app/settings" className={styles.identity} title="Профиль">
           <span className={styles.personName}>{name}</span>
           {username ? <span className={styles.nick}>@{username}</span> : null}
-        </span>
+        </Link>
         <form action={logoutAction}>
           <button type="submit" className={styles.logout}>
             Выйти
@@ -96,10 +96,15 @@ export function AppHeader({ name, username, isAdmin = false }: Props) {
               {link.label}
             </Link>
           ))}
-          <div className={styles.sheetUser}>
+          <Link
+            href="/app/settings"
+            className={styles.sheetUser}
+            onClick={() => setOpen(false)}
+          >
             <span className={styles.personName}>{name}</span>
             {username ? <span className={styles.nick}>@{username}</span> : null}
-          </div>
+            <span className={styles.profileHint}>Профиль и настройки</span>
+          </Link>
           <form action={logoutAction}>
             <button type="submit" className={styles.sheetLogout}>
               Выйти

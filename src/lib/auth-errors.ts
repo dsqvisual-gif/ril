@@ -3,6 +3,9 @@ export function authErrorMessage(error?: string): string | null {
   if (error === "google" || error === "Configuration") {
     return "Вход через Google ещё не настроен. Добавьте AUTH_GOOGLE_ID и AUTH_GOOGLE_SECRET в файл .env и перезапустите приложение.";
   }
+  if (error === "apple") {
+    return "Вход через Apple пока не настроен.";
+  }
   if (error === "AccessDenied") {
     return "Google не разрешил вход.";
   }

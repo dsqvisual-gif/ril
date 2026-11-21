@@ -26,7 +26,8 @@
   padding: 1rem 0 3rem;
 }
 
-.mascot {
+/* Doubled class: MascotIdle's own width must not win when its CSS loads later. */
+.wrap .mascot {
   flex: none;
   width: 280px;
 }
@@ -42,8 +43,34 @@
     padding-top: 0;
   }
 
-  .mascot {
+  .wrap .mascot {
     width: 150px;
     padding-top: 52px;
+  }
+}
+
+.offline {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.75rem;
+  max-width: 24rem;
+}
+
+.offline h1 {
+  font-size: clamp(1.8rem, 4vw, 2.4rem);
+  font-weight: 800;
+  letter-spacing: -0.03em;
+}
+
+.offline p {
+  color: var(--ink-secondary);
+  line-height: 1.55;
+}
+
+@media (max-width: 860px) {
+  .offline {
+    align-items: center;
+    text-align: center;
   }
 }

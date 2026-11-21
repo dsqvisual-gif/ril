@@ -143,3 +143,20 @@
   color: var(--accent);
   font-weight: 650;
 }
+
+.apple {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.6rem;
+  width: 100%;
+  padding: 0.85rem 1rem;
+  border-radius: 999px;
+  background: #000;
+  color: #fff;
+  font-weight: 650;
+}
+
+.apple:hover {
+  background: #1d1d1f;
+}

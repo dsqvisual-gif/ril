@@ -5,6 +5,7 @@ import { NicknameGate } from "@/components/NicknameGate";
 import { suggestUsername } from "@/lib/username";
 import { isAdminEmail } from "@/lib/admin";
 import { ActivityPing } from "@/components/ActivityPing";
+import { InstallPrompt } from "@/components/pwa/InstallPrompt";
 import { prisma } from "@/lib/prisma";
 
 export default async function AppLayout({
@@ -27,6 +28,7 @@ export default async function AppLayout({
   return (
     <div className="app-shell">
       <ActivityPing />
+      <InstallPrompt />
       <AppHeader
         name={name}
         username={user.username ?? null}

@@ -4,6 +4,7 @@ import { AuthForm } from "@/components/AuthForm";
 import { MascotIdle } from "@/components/MascotIdle";
 import { startRegistration } from "@/lib/actions/email-auth";
 import { authErrorMessage } from "@/lib/auth-errors";
+import { socialProviders } from "@/lib/auth";
 import styles from "../auth.module.css";
 
 export const metadata: Metadata = {
@@ -28,6 +29,7 @@ export default async function RegisterPage({
           mode="register"
           action={startRegistration}
           notice={authErrorMessage(params.error)}
+          apple={socialProviders.apple}
         />
       </main>
     </div>

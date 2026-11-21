@@ -171,3 +171,14 @@
     text-align: center;
   }
 }
+
+a.identity:hover .personName,
+a.sheetUser:hover .personName {
+  color: var(--accent);
+}
+
+.profileHint {
+  font-size: 0.78rem;
+  font-weight: 650;
+  color: var(--accent);
+}

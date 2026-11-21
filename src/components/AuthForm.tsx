@@ -3,7 +3,7 @@
 import { useActionState, useState } from "react";
 import { useFormStatus } from "react-dom";
 import Link from "next/link";
-import { googleSignInAction } from "@/lib/actions/google";
+import { appleSignInAction, googleSignInAction } from "@/lib/actions/google";
 import { confirmRegistration } from "@/lib/actions/email-auth";
 import { CodeStep } from "./CodeStep";
 import { PasswordInput } from "./PasswordInput";
@@ -15,9 +15,11 @@ type Props = {
   mode: "login" | "register";
   action: (prev: State, formData: FormData) => Promise<State>;
   notice?: string | null;
+  /** Shows "Sign in with Apple" (only when it is configured). */
+  apple?: boolean;
 };
 
-export function AuthForm({ mode, action, notice }: Props) {
+export function AuthForm({ mode, action, notice, apple = false }: Props) {
   const [state, formAction, pending] = useActionState(action, {});
   // Values typed before a code was sent, to refill the form after "Изменить почту".
   const [values, setValues] = useState<Record<string, string>>({});
@@ -127,6 +129,13 @@ export function AuthForm({ mode, action, notice }: Props) {
         <GoogleButton />
       </form>
 
+      {apple ? (
+        <form action={appleSignInAction}>
+          <input type="hidden" name="from" value={mode === "login" ? "/login" : "/register"} />
+          <AppleButton />
+        </form>
+      ) : null}
+
       {mode === "register" ? (
         <p className={styles.legal}>
           Регистрируясь, вы соглашаетесь с{" "}
@@ -176,6 +185,22 @@ function GoogleButton() {
         />
       </svg>
       {pending ? "Переходим в Google…" : "Войти через Google"}
+    </button>
+  );
+}
+
+function AppleButton() {
+  const { pending } = useFormStatus();
+
+  return (
+    <button type="submit" className={styles.apple} disabled={pending}>
+      <svg width="16" height="19" viewBox="0 0 16 19" aria-hidden>
+        <path
+          fill="currentColor"
+          d="M13.2 10.1c0-2.4 2-3.6 2.1-3.7-1.2-1.7-3-1.9-3.6-1.9-1.5-.2-3 .9-3.8.9-.8 0-2-.9-3.3-.9C2.9 4.5 1.3 5.5.5 7.1c-1.8 3.1-.5 7.6 1.3 10.1.8 1.2 1.8 2.6 3.1 2.5 1.3 0 1.7-.8 3.3-.8 1.5 0 1.9.8 3.3.8 1.4 0 2.2-1.2 3-2.5 1-1.4 1.3-2.7 1.4-2.8-.1 0-2.7-1-2.7-4.3ZM10.8 3c.7-.8 1.1-1.9 1-3-1 0-2.1.7-2.8 1.5-.6.7-1.2 1.8-1 2.9 1 .1 2.1-.6 2.8-1.4Z"
+        />
+      </svg>
+      {pending ? "Переходим в Apple…" : "Войти через Apple"}
     </button>
   );
 }

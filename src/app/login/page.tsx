@@ -4,6 +4,7 @@ import { AuthForm } from "@/components/AuthForm";
 import { MascotIdle } from "@/components/MascotIdle";
 import { loginAction } from "@/lib/actions/login";
 import { authErrorMessage } from "@/lib/auth-errors";
+import { socialProviders } from "@/lib/auth";
 import styles from "../auth.module.css";
 
 export const metadata: Metadata = {
@@ -24,7 +25,8 @@ export default async function LoginPage({
       </header>
       <main className={styles.wrap}>
         <MascotIdle className={styles.mascot} />
-        <AuthForm mode="login" action={loginAction} notice={authErrorMessage(params.error)} />
+        <AuthForm mode="login" action={loginAction} notice={authErrorMessage(params.error)}
+          apple={socialProviders.apple} />
       </main>
     </div>
   );

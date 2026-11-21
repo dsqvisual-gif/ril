@@ -1,6 +1,7 @@
 import NextAuth, { CredentialsSignin } from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 import Google from "next-auth/providers/google";
+import Apple from "next-auth/providers/apple";
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
 import { authConfig } from "@/lib/auth.config";
@@ -99,7 +100,21 @@ function googleProfile(profile: unknown): {
   return { email, name, image };
 }
 
-async function upsertGoogleUser(input: {
+/** Apple sends a name only on the very first sign-in, so the email may have to stand in. */
+function appleProfile(
+  profile: unknown,
+  fallbackName: string | null | undefined,
+): { email: string; name: string; image: null } | null {
+  if (!profile || typeof profile !== "object") return null;
+  const raw = profile as { email?: unknown; email_verified?: unknown };
+  if (typeof raw.email !== "string" || !raw.email.includes("@")) return null;
+  if (raw.email_verified !== true && raw.email_verified !== "true") return null;
+  const email = raw.email.toLowerCase().trim();
+  const name = fallbackName?.trim() || email.split("@")[0];
+  return { email, name, image: null };
+}
+
+async function upsertOAuthUser(input: {
   email: string;
   name: string;
   image: string | null;
@@ -129,6 +144,18 @@ async function upsertGoogleUser(input: {
     },
   });
 }
+
+function appleEnv() {
+  const clientId = process.env.AUTH_APPLE_ID?.trim();
+  const clientSecret = process.env.AUTH_APPLE_SECRET?.trim();
+  if (!clientId || !clientSecret) return null;
+  return { clientId, clientSecret };
+}
+
+const apple = appleEnv();
+
+/** Which social sign-ins are configured, for showing their buttons. */
+export const socialProviders = { google: Boolean(googleEnv()), apple: Boolean(apple) };
 
 function googleEnv() {
   const clientId = process.env.AUTH_GOOGLE_ID?.trim();
@@ -213,6 +240,15 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           }),
         ]
       : []),
+    ...(apple
+      ? [
+          Apple({
+            clientId: apple.clientId,
+            clientSecret: apple.clientSecret,
+            allowDangerousEmailAccountLinking: true,
+          }),
+        ]
+      : []),
   ],
   callbacks: {
     ...authConfig.callbacks,
@@ -220,16 +256,20 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       if (account?.provider === "google") {
         return Boolean(googleProfile(profile));
       }
+      if (account?.provider === "apple") {
+        return Boolean(appleProfile(profile, null));
+      }
       return true;
     },
     async jwt({ token, user, account, profile }) {
-      if (account?.provider === "google") {
-        const parsed = googleProfile(profile);
+      if (account?.provider === "google" || account?.provider === "apple") {
+        const parsed =
+          account.provider === "google" ? googleProfile(profile) : appleProfile(profile, user?.name);
         const email =
           parsed?.email ??
           (typeof user?.email === "string" ? user.email.toLowerCase() : "");
         if (email) {
-          const dbUser = await upsertGoogleUser({
+          const dbUser = await upsertOAuthUser({
             email,
             name: parsed?.name || user?.name || email.split("@")[0],
             image: parsed?.image ?? user?.image ?? null,

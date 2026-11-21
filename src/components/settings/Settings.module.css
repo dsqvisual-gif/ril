@@ -1,0 +1,121 @@
+.root {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  max-width: 640px;
+}
+
+.title {
+  font-size: clamp(1.8rem, 3vw, 2.4rem);
+  letter-spacing: -0.04em;
+  font-weight: 750;
+}
+
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.8rem;
+  padding: 1.2rem;
+  border-radius: var(--radius);
+  background: var(--surface-solid);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-soft);
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+}
+
+.list div {
+  display: grid;
+  grid-template-columns: 8rem 1fr;
+  gap: 0.75rem;
+  padding: 0.6rem 0;
+}
+
+.list div + div {
+  border-top: 1px solid var(--border);
+}
+
+.list dt {
+  color: var(--ink-secondary);
+  font-size: 0.9rem;
+}
+
+.list dd {
+  font-weight: 650;
+  overflow-wrap: anywhere;
+}
+
+.ok {
+  color: var(--success);
+  font-size: 0.85rem;
+}
+
+.hint {
+  font-size: 0.88rem;
+  color: var(--ink-secondary);
+  line-height: 1.5;
+}
+
+.hint a {
+  color: var(--accent);
+  font-weight: 650;
+}
+
+.danger {
+  border-color: rgba(255, 59, 48, 0.25);
+  align-items: flex-start;
+}
+
+.dangerTitle {
+  font-size: 1.1rem;
+  font-weight: 800;
+  color: var(--danger);
+}
+
+.confirm {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  width: 100%;
+}
+
+.confirm label {
+  font-size: 0.9rem;
+}
+
+.input {
+  padding: 0.7rem 0.9rem;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  font: inherit;
+  outline: none;
+}
+
+.input:focus {
+  border-color: rgba(255, 59, 48, 0.45);
+  box-shadow: 0 0 0 4px rgba(255, 59, 48, 0.1);
+}
+
+.actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.deleteBtn {
+  background: rgba(255, 59, 48, 0.1);
+  color: var(--danger);
+}
+
+.deleteBtn:hover {
+  background: rgba(255, 59, 48, 0.18);
+}
+
+@media (max-width: 600px) {
+  .list div {
+    grid-template-columns: 1fr;
+    gap: 0.1rem;
+  }
+}

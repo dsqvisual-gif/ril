@@ -15,3 +15,14 @@ export async function googleSignInAction(formData: FormData) {
 
   await signIn("google", { redirectTo: "/app" });
 }
+
+export async function appleSignInAction(formData: FormData) {
+  const from = String(formData.get("from") ?? "/login");
+  const back = from === "/register" ? "/register" : "/login";
+
+  if (!process.env.AUTH_APPLE_ID?.trim() || !process.env.AUTH_APPLE_SECRET?.trim()) {
+    redirect(`${back}?error=apple`);
+  }
+
+  await signIn("apple", { redirectTo: "/app" });
+}
