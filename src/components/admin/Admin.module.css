@@ -93,7 +93,7 @@
 
 .table {
   width: 100%;
-  min-width: 760px;
+  min-width: 980px;
   border-collapse: collapse;
   font-size: 0.9rem;
 }
@@ -158,4 +158,98 @@
 .empty {
   padding: 1rem;
   color: var(--ink-secondary);
+}
+
+.sort {
+  padding: 0.55rem 0.75rem;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: #fff;
+  font: inherit;
+  font-size: 0.88rem;
+}
+
+.error {
+  padding: 0.6rem 0.9rem;
+  color: var(--danger);
+  font-weight: 650;
+  border-bottom: 1px solid var(--border);
+}
+
+.sub {
+  display: block;
+  margin-top: 0.1rem;
+  font-size: 0.76rem;
+  color: var(--ink-tertiary);
+  white-space: nowrap;
+}
+
+.table td .tag,
+.table td .tagGoogle {
+  display: inline-block;
+  margin-top: 0.25rem;
+}
+
+.seen {
+  display: inline-block;
+  padding: 0.12rem 0.5rem;
+  border-radius: 999px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.seenNow {
+  background: rgba(52, 199, 89, 0.15);
+  color: #1f8a3c;
+}
+
+.seenFresh {
+  background: rgba(0, 122, 255, 0.1);
+  color: var(--accent);
+}
+
+.seenOk {
+  background: rgba(0, 0, 0, 0.05);
+  color: var(--ink-secondary);
+}
+
+.seenIdle {
+  background: #fff1d6;
+  color: #9a5b00;
+}
+
+.seenGone {
+  background: rgba(255, 59, 48, 0.1);
+  color: var(--danger);
+}
+
+.seenNone {
+  color: var(--ink-tertiary);
+  font-weight: 600;
+}
+
+.delete {
+  padding: 0.3rem 0.7rem;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--danger);
+  background: rgba(255, 59, 48, 0.08);
+  white-space: nowrap;
+}
+
+.delete:hover {
+  background: rgba(255, 59, 48, 0.16);
+}
+
+.delete:disabled {
+  opacity: 0.5;
+}
+
+.footnote {
+  padding: 0.7rem 0.9rem;
+  font-size: 0.78rem;
+  color: var(--ink-tertiary);
+  border-top: 1px solid var(--border);
 }

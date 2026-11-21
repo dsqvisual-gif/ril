@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { requireAdmin } from "@/lib/admin";
-import { adminStats, formatAdminDate, listAdminUsers } from "@/lib/admin-users";
+import { adminStats, formatAdminDate, formatMinutes, listAdminUsers } from "@/lib/admin-users";
+import { auth } from "@/lib/auth";
 import { AdminUsersTable } from "@/components/admin/AdminUsersTable";
 import styles from "@/components/admin/Admin.module.css";
 
@@ -14,6 +15,7 @@ export default async function AdminPage() {
   await requireAdmin();
   const users = await listAdminUsers();
   const stats = adminStats(users);
+  const session = await auth();
 
   return (
     <section className={styles.root}>
@@ -40,10 +42,14 @@ export default async function AdminPage() {
       </div>
 
       <AdminUsersTable
+        meId={session?.user?.id ?? ""}
         users={users.map((u) => ({
           ...u,
           createdAt: formatAdminDate(u.createdAt, "table"),
           createdKey: u.createdAt.toISOString(),
+          lastSeenKey: u.lastSeenAt ? u.lastSeenAt.toISOString() : null,
+          lastSeenText: u.lastSeenAt ? formatAdminDate(u.lastSeenAt, "table") : null,
+          usage: formatMinutes(u.activeMinutes),
         }))}
       />
     </section>

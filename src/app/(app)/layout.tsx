@@ -4,6 +4,8 @@ import { redirect } from "next/navigation";
 import { NicknameGate } from "@/components/NicknameGate";
 import { suggestUsername } from "@/lib/username";
 import { isAdminEmail } from "@/lib/admin";
+import { ActivityPing } from "@/components/ActivityPing";
+import { prisma } from "@/lib/prisma";
 
 export default async function AppLayout({
   children,
@@ -17,10 +19,14 @@ export default async function AppLayout({
   if (!user?.id) {
     redirect("/login");
   }
+  // A deleted account can still hold a valid session cookie.
+  const exists = await prisma.user.findUnique({ where: { id: user.id }, select: { id: true } });
+  if (!exists) redirect("/goodbye");
   const name = user.name ?? "";
 
   return (
     <div className="app-shell">
+      <ActivityPing />
       <AppHeader
         name={name}
         username={user.username ?? null}

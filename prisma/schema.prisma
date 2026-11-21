@@ -20,6 +20,10 @@ model User {
   image        String?
   /// Set once the user proved they own the email (a code from it, or Google).
   emailVerified DateTime?
+  /// Activity, from a ping the app sends once a minute while it is open.
+  lastSeenAt    DateTime?
+  activeMinutes Int                @default(0)
+  activeDays    Int                @default(0)
   createdAt    DateTime            @default(now())
   tasks        Task[]
   achievements AchievementUnlock[]
