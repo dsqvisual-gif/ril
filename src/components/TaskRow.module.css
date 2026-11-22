@@ -77,11 +77,11 @@
 
 .swipeDone {
   background: var(--success);
+  justify-content: flex-end;
 }
 
 .swipeLater {
   background: var(--accent);
-  justify-content: flex-end;
 }
 
 .swipeRight {

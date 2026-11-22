@@ -74,7 +74,7 @@ export function DayView({
       {swipeHint && open.length > 0 ? (
         <p className={styles.swipeHint}>
           <span>
-            Смахните дело <b>вправо</b> — готово, <b>влево</b> — на завтра
+            Смахните дело <b>влево</b> — готово, <b>вправо</b> — на завтра
           </span>
           <button type="button" onClick={markSwipeLearned} aria-label="Понятно">
             ×

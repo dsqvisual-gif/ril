@@ -101,8 +101,8 @@ export function TaskRow({ task, friends, busy, ...handlers }: Props) {
       if (Math.abs(moveX) < 12) return;
       start.dragging = true;
     }
-    // Left is "to tomorrow", only for the author's open tasks: resist otherwise.
-    const limited = moveX < 0 && !canPostpone ? moveX / 4 : moveX;
+    // Right is "to tomorrow", only for the author's open tasks: resist otherwise.
+    const limited = moveX > 0 && !canPostpone ? moveX / 4 : moveX;
     const next = Math.max(-140, Math.min(140, limited));
     if (Math.abs(next) >= SWIPE_AT && Math.abs(dx) < SWIPE_AT) navigator.vibrate?.(8);
     setDx(next);
@@ -114,10 +114,10 @@ export function TaskRow({ task, friends, busy, ...handlers }: Props) {
     if (!start?.dragging) return;
     const offset = dx;
     setDx(0);
-    if (offset >= SWIPE_AT) {
+    if (offset <= -SWIPE_AT) {
       markSwipeLearned();
       check();
-    } else if (offset <= -SWIPE_AT && canPostpone) {
+    } else if (offset >= SWIPE_AT && canPostpone) {
       markSwipeLearned();
       onPostpone(task.id);
     }
@@ -134,8 +134,8 @@ export function TaskRow({ task, friends, busy, ...handlers }: Props) {
 
   // A mascot peeks out from behind every important open task.
   const peek = task.important && !task.done;
-  const swipeSide = dx > 0 ? "done" : dx < 0 ? "later" : null;
-  const ready = Math.abs(dx) >= SWIPE_AT && (dx > 0 || canPostpone);
+  const swipeSide = dx < 0 ? "done" : dx > 0 ? "later" : null;
+  const ready = Math.abs(dx) >= SWIPE_AT && (dx < 0 || canPostpone);
 
   return (
     <div className={peek ? `${styles.wrap} ${styles.wrapPeek}` : styles.wrap}>
@@ -156,7 +156,7 @@ export function TaskRow({ task, friends, busy, ...handlers }: Props) {
             aria-hidden
           >
             {swipeSide === "done" ? (
-              <span>{task.done ? "↺ Вернуть" : hasList ? "☑ Список" : "✓ Готово"}</span>
+              <span>{task.done ? "Вернуть ↺" : hasList ? "Список ☑" : "Готово ✓"}</span>
             ) : (
               <span className={styles.swipeRight}>{canPostpone ? "На завтра →" : "Нельзя перенести"}</span>
             )}
