@@ -677,9 +677,6 @@
   background: var(--accent);
 }
 
-.barBottle {
-  background: color-mix(in srgb, var(--accent) 45%, white);
-}
 
 .barPee {
   background: #66c2e8;

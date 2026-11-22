@@ -21,7 +21,6 @@ import {
   formatDuration,
   type BabyEventKind,
   type DiaperData,
-  type FeedData,
 } from "@/lib/baby";
 import { todayKey } from "@/lib/dates";
 import { AchievementToast } from "../AchievementToast";
@@ -85,7 +84,6 @@ function ChildDay({ child }: { child: ChildDTO }) {
   const [day, setDay] = useState(() => startOfLocalDay(new Date()).getTime());
   const [busy, setBusy] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
-  const [bottleOpen, setBottleOpen] = useState(false);
   const [adding, setAdding] = useState(false);
   const [editing, setEditing] = useState<string | null>(null);
 
@@ -121,9 +119,6 @@ function ChildDay({ child }: { child: ChildDTO }) {
   const runningFeed = events.find((e) => e.kind === "feed" && !e.endedAt) ?? null;
   const lastSleep = events.find((e) => e.kind === "sleep" && e.endedAt) ?? null;
   const lastFeed = events.find((e) => e.kind === "feed") ?? null;
-  const lastBreast = events.find((e) => e.kind === "feed" && (e.data as FeedData | null)?.type === "breast");
-  const lastSide = (lastBreast?.data as FeedData | null)?.side ?? null;
-  const suggestedSide = lastSide === "left" ? "right" : lastSide === "right" ? "left" : null;
   const lastDiaper = events.find((e) => e.kind === "diaper") ?? null;
 
   const dayEvents = useMemo(
@@ -139,7 +134,6 @@ function ChildDay({ child }: { child: ChildDTO }) {
   const totals = useMemo(() => {
     let sleep = 0;
     let feeds = 0;
-    let ml = 0;
     let diapers = 0;
     for (const e of dayEvents) {
       if (e.kind === "sleep") {
@@ -149,11 +143,10 @@ function ChildDay({ child }: { child: ChildDTO }) {
       } else if (e.kind === "feed") {
         if (new Date(e.startedAt).getTime() >= day) {
           feeds += 1;
-          ml += (e.data as FeedData | null)?.ml ?? 0;
         }
       } else if (new Date(e.startedAt).getTime() >= day) diapers += 1;
     }
-    return { sleep, feeds, ml, diapers };
+    return { sleep, feeds, diapers };
   }, [dayEvents, day, now]);
 
   const isToday = isSameDay(new Date(day), new Date(now));
@@ -213,96 +206,34 @@ function ChildDay({ child }: { child: ChildDTO }) {
           {runningFeed ? (
             <>
               <p className={styles.nowBig}>{formatClock(now - new Date(runningFeed.startedAt).getTime())}</p>
-              <p className={styles.nowSub}>
-                {(runningFeed.data as FeedData | null)?.side === "left"
-                  ? "левая грудь"
-                  : (runningFeed.data as FeedData | null)?.side === "right"
-                    ? "правая грудь"
-                    : "грудь"}
-              </p>
-              <div className={styles.btnRow}>
-                <button
-                  type="button"
-                  className={styles.softBtn}
-                  disabled={busy === "feed"}
-                  onClick={() => {
-                    const side = (runningFeed.data as FeedData | null)?.side === "left" ? "right" : "left";
-                    void act(
-                      "feed",
-                      async () => merge(unwrap(await startTimer(child.id, "feed", { type: "breast", side }))),
-                      "Не удалось сменить грудь",
-                    );
-                  }}
-                >
-                  ⇄ Сменить грудь
-                </button>
-                <button
-                  type="button"
-                  className={styles.bigBtn}
-                  disabled={busy === "feed"}
-                  onClick={() =>
-                    void act("feed", async () => merge([unwrap(await stopTimer(runningFeed.id))]), "Не удалось остановить")
-                  }
-                >
-                  Закончить
-                </button>
-              </div>
+              <p className={styles.nowSub}>кормление с {format(new Date(runningFeed.startedAt), "HH:mm")}</p>
+              <button
+                type="button"
+                className={styles.bigBtn}
+                disabled={busy === "feed"}
+                onClick={() =>
+                  void act("feed", async () => merge([unwrap(await stopTimer(runningFeed.id))]), "Не удалось остановить")
+                }
+              >
+                Закончить
+              </button>
             </>
           ) : (
             <>
               <p className={styles.nowBig}>
                 {lastFeed ? formatDuration(now - new Date(lastFeed.startedAt).getTime()) : "—"}
               </p>
-              <p className={styles.nowSub}>
-                {lastFeed ? "с прошлого кормления" : "кормлений ещё не записано"}
-                {lastSide ? ` · последней была ${lastSide === "left" ? "левая" : "правая"}` : ""}
-              </p>
-              <div className={styles.btnRow}>
-                {(["left", "right"] as const).map((side) => (
-                  <button
-                    key={side}
-                    type="button"
-                    className={side === suggestedSide ? styles.bigBtn : styles.softBtn}
-                    disabled={busy === "feed"}
-                    title={side === suggestedSide ? "Сейчас эта" : undefined}
-                    onClick={() =>
-                      void act(
-                        "feed",
-                        async () => merge(unwrap(await startTimer(child.id, "feed", { type: "breast", side }))),
-                        "Не удалось начать кормление",
-                      )
-                    }
-                  >
-                    {side === "left" ? "Левая" : "Правая"}
-                  </button>
-                ))}
-                <button type="button" className={styles.softBtn} onClick={() => setBottleOpen((v) => !v)}>
-                  🍼 Бутылочка
-                </button>
-              </div>
-              {bottleOpen ? (
-                <BottleForm
-                  busy={busy === "bottle"}
-                  onSave={(data) =>
-                    act(
-                      "bottle",
-                      async () => {
-                        merge([
-                          unwrap(
-                            await addEvent(child.id, {
-                              kind: "feed",
-                              startedAt: new Date().toISOString(),
-                              data,
-                            }),
-                          ),
-                        ]);
-                        setBottleOpen(false);
-                      },
-                      "Не удалось записать",
-                    )
-                  }
-                />
-              ) : null}
+              <p className={styles.nowSub}>{lastFeed ? "с прошлого кормления" : "кормлений ещё не записано"}</p>
+              <button
+                type="button"
+                className={styles.bigBtn}
+                disabled={busy === "feed"}
+                onClick={() =>
+                  void act("feed", async () => merge(unwrap(await startTimer(child.id, "feed"))), "Не удалось начать кормление")
+                }
+              >
+                🍼 Начать кормление
+              </button>
             </>
           )}
         </article>
@@ -368,7 +299,6 @@ function ChildDay({ child }: { child: ChildDTO }) {
         <span>😴 {totals.sleep ? formatDuration(totals.sleep) : "0 мин"} сна</span>
         <span>
           🍼 {totals.feeds} {totals.feeds === 1 ? "кормление" : totals.feeds < 5 && totals.feeds > 1 ? "кормления" : "кормлений"}
-          {totals.ml ? ` · ${totals.ml} мл` : ""}
         </span>
         <span>🧷 {totals.diapers} подгузн.</span>
       </div>
@@ -453,7 +383,7 @@ function icon(e: BabyEventDTO): string {
     const d = e.data as DiaperData | null;
     return d?.poo ? "💩" : "💧";
   }
-  return (e.data as FeedData | null)?.type === "bottle" ? "🍼" : "🤱";
+  return "🍼";
 }
 
 function title(e: BabyEventDTO): string {
@@ -462,72 +392,19 @@ function title(e: BabyEventDTO): string {
     const d = e.data as DiaperData | null;
     return d?.pee && d?.poo ? "Подгузник: мокрый и грязный" : d?.poo ? "Подгузник: грязный" : "Подгузник: мокрый";
   }
-  const f = e.data as FeedData | null;
-  if (f?.type === "bottle") return `Бутылочка ${f.ml ?? ""} мл`;
-  return f?.side === "left" ? "Грудь: левая" : f?.side === "right" ? "Грудь: правая" : "Грудь";
+  return e.endedAt ? "Кормление" : "Кормление идёт";
 }
 
 function details(e: BabyEventDTO, now: number): string {
   const parts: string[] = [];
-  if (e.kind !== "diaper" && !(e.kind === "feed" && (e.data as FeedData | null)?.type === "bottle")) {
+  if (e.kind !== "diaper") {
     const end = eventEnd(e, now);
     parts.push(
       `${format(new Date(e.startedAt), "HH:mm")}–${e.endedAt ? format(new Date(e.endedAt), "HH:mm") : "сейчас"} · ${formatDuration(end - new Date(e.startedAt).getTime())}`,
     );
   }
-  if ((e.data as FeedData | null)?.type === "bottle") {
-    parts.push((e.data as FeedData).milk === "breastmilk" ? "сцеженное молоко" : "смесь");
-  }
   if (e.note) parts.push(e.note);
   return parts.join(" · ") || "нажмите, чтобы изменить";
-}
-
-function BottleForm({
-  busy,
-  onSave,
-}: {
-  busy: boolean;
-  onSave: (data: FeedData) => Promise<void>;
-}) {
-  const [ml, setMl] = useState("");
-  const [milk, setMilk] = useState<"formula" | "breastmilk">("formula");
-
-  return (
-    <form
-      className={styles.inlineForm}
-      onSubmit={(e) => {
-        e.preventDefault();
-        void onSave({ type: "bottle", ml: Number(ml), milk });
-      }}
-    >
-      <div className={styles.quickMl}>
-        {[60, 90, 120, 150].map((v) => (
-          <button key={v} type="button" className={Number(ml) === v ? styles.chipOn : styles.chip} onClick={() => setMl(String(v))}>
-            {v}
-          </button>
-        ))}
-        <input
-          className={styles.input}
-          inputMode="numeric"
-          value={ml}
-          onChange={(e) => setMl(e.target.value.replace(/\D/g, ""))}
-          placeholder="мл"
-          aria-label="Сколько мл"
-        />
-      </div>
-      <div className={styles.quickMl}>
-        <button type="button" className={milk === "formula" ? styles.chipOn : styles.chip} onClick={() => setMilk("formula")}>
-          Смесь
-        </button>
-        <button type="button" className={milk === "breastmilk" ? styles.chipOn : styles.chip} onClick={() => setMilk("breastmilk")}>
-          Сцеженное
-        </button>
-        <button type="submit" className={styles.bigBtn} disabled={busy || !ml}>
-          Записать
-        </button>
-      </div>
-    </form>
-  );
 }
 
 function EventForm({
@@ -550,11 +427,7 @@ function EventForm({
   const [end, setEnd] = useState(() =>
     initial?.endedAt ? toLocalInput(new Date(initial.endedAt)) : initial ? "" : toLocalInput(new Date()),
   );
-  const feed = initial?.data as FeedData | null;
   const diaper = initial?.data as DiaperData | null;
-  const [feedType, setFeedType] = useState<"breast" | "bottle">(feed?.type ?? "breast");
-  const [side, setSide] = useState<"left" | "right">(feed?.side ?? "left");
-  const [ml, setMl] = useState(feed?.ml ? String(feed.ml) : "");
   const [pee, setPee] = useState(diaper?.pee ?? true);
   const [poo, setPoo] = useState(diaper?.poo ?? false);
   const [note, setNote] = useState(initial?.note ?? "");
@@ -562,15 +435,9 @@ function EventForm({
 
   function submit(event: FormEvent) {
     event.preventDefault();
-    const data =
-      kind === "feed"
-        ? feedType === "bottle"
-          ? { type: "bottle" as const, ml: Number(ml), milk: feed?.milk ?? ("formula" as const) }
-          : { type: "breast" as const, side }
-        : kind === "diaper"
-          ? { pee, poo }
-          : null;
-    const instant = kind === "diaper" || (kind === "feed" && feedType === "bottle");
+    // Feeding records keep whatever they had (older ones may still note a side); new ones need nothing.
+    const data = kind === "diaper" ? { pee, poo } : undefined;
+    const instant = kind === "diaper";
     void onSave({
       kind,
       startedAt: new Date(start).toISOString(),
@@ -580,7 +447,7 @@ function EventForm({
     });
   }
 
-  const instant = kind === "diaper" || (kind === "feed" && feedType === "bottle");
+  const instant = kind === "diaper";
 
   return (
     <form className={styles.eventForm} onSubmit={submit}>
@@ -597,23 +464,6 @@ function EventForm({
               {label}
             </button>
           ))}
-        </div>
-      ) : null}
-
-      {kind === "feed" ? (
-        <div className={styles.quickMl}>
-          <button type="button" className={feedType === "breast" && side === "left" ? styles.chipOn : styles.chip} onClick={() => { setFeedType("breast"); setSide("left"); }}>
-            Левая
-          </button>
-          <button type="button" className={feedType === "breast" && side === "right" ? styles.chipOn : styles.chip} onClick={() => { setFeedType("breast"); setSide("right"); }}>
-            Правая
-          </button>
-          <button type="button" className={feedType === "bottle" ? styles.chipOn : styles.chip} onClick={() => setFeedType("bottle")}>
-            Бутылочка
-          </button>
-          {feedType === "bottle" ? (
-            <input className={styles.input} inputMode="numeric" value={ml} onChange={(e) => setMl(e.target.value.replace(/\D/g, ""))} placeholder="мл" aria-label="Сколько мл" />
-          ) : null}
         </div>
       ) : null}
 

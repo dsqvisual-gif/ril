@@ -13,7 +13,7 @@ import {
   type GrowthDTO,
 } from "@/lib/actions/baby";
 import { errorText, unwrap } from "@/lib/action-result";
-import { formatDuration, type DiaperData, type FeedData } from "@/lib/baby";
+import { formatDuration, type DiaperData } from "@/lib/baby";
 import { fromDateKey, todayKey } from "@/lib/dates";
 import { AchievementToast } from "../AchievementToast";
 import styles from "./Baby.module.css";
@@ -28,8 +28,6 @@ type DayStat = {
   daySleep: number;
   nightSleep: number;
   feeds: number;
-  breast: number;
-  bottleMl: number;
   pee: number;
   poo: number;
 };
@@ -46,8 +44,6 @@ function buildStats(events: BabyEventDTO[], days: number, now: number): DayStat[
     daySleep: 0,
     nightSleep: 0,
     feeds: 0,
-    breast: 0,
-    bottleMl: 0,
     pee: 0,
     poo: 0,
   }));
@@ -75,10 +71,7 @@ function buildStats(events: BabyEventDTO[], days: number, now: number): DayStat[
     const i = indexOf(start);
     if (i < 0 || i >= days) continue;
     if (e.kind === "feed") {
-      const f = e.data as FeedData | null;
       stats[i].feeds += 1;
-      if (f?.type === "bottle") stats[i].bottleMl += f.ml ?? 0;
-      else stats[i].breast += 1;
     } else {
       const d = e.data as DiaperData | null;
       if (d?.pee) stats[i].pee += 1;
@@ -198,17 +191,9 @@ function StatsBoard({ child }: { child: ChildDTO }) {
 
       <Chart
         title="🍼 Кормления"
-        legend={[
-          ["Грудь", styles.barFeed],
-          ["Бутылочка", styles.barBottle],
-        ]}
+        legend={[]}
         stats={stats}
-        render={(d) => (
-          <>
-            <span className={styles.barFeed} style={{ height: `${(d.breast / maxFeeds) * 100}%` }} />
-            <span className={styles.barBottle} style={{ height: `${((d.feeds - d.breast) / maxFeeds) * 100}%` }} />
-          </>
-        )}
+        render={(d) => <span className={styles.barFeed} style={{ height: `${(d.feeds / maxFeeds) * 100}%` }} />}
         label={(d) => (d.feeds ? String(d.feeds) : "")}
       />
 

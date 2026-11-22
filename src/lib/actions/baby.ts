@@ -282,7 +282,7 @@ export async function startTimer(
     const other = kind === "sleep" ? "feed" : "sleep";
     await prisma.babyEvent.updateMany({ where: { childId, kind: other, endedAt: null }, data: { endedAt: now } });
     const created = await prisma.babyEvent.create({
-      data: { childId, kind, startedAt: now, data: kind === "feed" ? cleanData("feed", data ?? { type: "breast" }) : undefined },
+      data: { childId, kind, startedAt: now, data: kind === "feed" && data ? cleanData("feed", data) : undefined },
     });
     const touched = await prisma.babyEvent.findMany({
       where: { id: { in: [created.id, ...stopped.map((e) => e.id)] } },
