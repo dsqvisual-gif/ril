@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "Uspeyka",
-    "slug": "uspeyka",
+    "slug": "danil",
     "scheme": "uspeyka",
     "version": "0.1.0",
     "orientation": "portrait",
@@ -36,6 +36,17 @@
     ],
     "experiments": {
       "typedRoutes": true
+    },
+    "owner": "goguapps-team",
+    "extra": {
+      "router": {
+        "asyncRoutes": {
+          "web": true
+        }
+      },
+      "eas": {
+        "projectId": "3469b8cc-7941-4b2a-95ad-01bfc93eb0e8"
+      }
     }
   }
 }
