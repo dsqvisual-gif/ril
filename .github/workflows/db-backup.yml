@@ -1,0 +1,90 @@
+name: Database backup
+
+# Every night: a full dump of the production database, checked by restoring it
+# into a scratch Postgres, then encrypted and kept as a workflow artifact for 90 days.
+on:
+  schedule:
+    - cron: "23 21 * * *" # 03:23 in Almaty
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+concurrency:
+  group: db-backup
+  cancel-in-progress: false
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    services:
+      scratch:
+        image: postgres:18
+        env:
+          POSTGRES_PASSWORD: restorecheck
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      BACKUP_DATABASE_URL: ${{ secrets.BACKUP_DATABASE_URL }}
+      BACKUP_PASSPHRASE: ${{ secrets.BACKUP_PASSPHRASE }}
+    steps:
+      - name: Check secrets
+        run: |
+          if [ -z "$BACKUP_DATABASE_URL" ] || [ -z "$BACKUP_PASSPHRASE" ]; then
+            echo "::error::Add BACKUP_DATABASE_URL and BACKUP_PASSPHRASE in Settings → Secrets and variables → Actions"
+            exit 1
+          fi
+          if [ "${#BACKUP_PASSPHRASE}" -lt 20 ]; then
+            echo "::error::BACKUP_PASSPHRASE must be at least 20 characters"
+            exit 1
+          fi
+
+      - name: Dump the database
+        run: |
+          # Only the app's own schema: provider internals (auth, storage...) are not ours to restore.
+          docker run --rm -e DB="$BACKUP_DATABASE_URL" postgres:18 \
+            sh -c 'pg_dump --format=custom --compress=9 --no-owner --no-privileges --schema=public "$DB"' > db.dump
+          size=$(stat -c %s db.dump)
+          echo "Dump size: $size bytes"
+          if [ "$size" -lt 1024 ]; then
+            echo "::error::The dump is suspiciously small"
+            exit 1
+          fi
+
+      - name: Check the dump by restoring it
+        run: |
+          docker run --rm --network host -v "$PWD:/w" postgres:18 \
+            pg_restore --clean --if-exists --no-owner --no-privileges --exit-on-error \
+            -d postgresql://postgres:restorecheck@localhost:5432/postgres /w/db.dump
+          docker run --rm --network host postgres:18 psql -At \
+            postgresql://postgres:restorecheck@localhost:5432/postgres -c \
+            'SELECT format($$users=%s tasks=%s goals=%s children=%s$$,
+               (SELECT count(*) FROM "User"), (SELECT count(*) FROM "Task"),
+               (SELECT count(*) FROM "Goal"), (SELECT count(*) FROM "Child"))' | tee counts.txt
+          if grep -q "users=0 " counts.txt; then
+            echo "::error::The restored copy has no users"
+            exit 1
+          fi
+
+      - name: Encrypt
+        run: |
+          name="uspeyka-db-$(date -u +%Y-%m-%d).dump.gpg"
+          gpg --batch --yes --pinentry-mode loopback --passphrase-fd 3 \
+            --symmetric --cipher-algo AES256 -o "$name" db.dump 3<<<"$BACKUP_PASSPHRASE"
+          shred -u db.dump
+          echo "BACKUP_FILE=$name" >> "$GITHUB_ENV"
+
+      - name: Keep for 90 days
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.BACKUP_FILE }}
+          path: ${{ env.BACKUP_FILE }}
+          retention-days: 90
+          compression-level: 0
+          if-no-files-found: error
