@@ -10,10 +10,9 @@
   width: auto;
 }
 
-/* The lettering has a descender (p, y), so it is a bit taller than the cap height. */
-.wordmark {
+.mark {
   display: block;
-  height: 30px;
+  height: 40px;
   width: auto;
 }
 
@@ -22,8 +21,8 @@
     height: 32px;
   }
 
-  .wordmark {
-    height: 26px;
+  .mark {
+    height: 36px;
   }
 }
 

@@ -69,7 +69,7 @@ export function AppHeader({
 
   return (
     <header className={styles.header}>
-      <Brand href={momMode ? "/app/baby" : "/app"} wordmark />
+      <Brand href={momMode ? "/app/baby" : "/app"} mark />
       <nav className={styles.nav} aria-label="Разделы">
         {links.map((link) => (
           <Link

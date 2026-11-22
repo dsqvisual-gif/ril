@@ -5,31 +5,31 @@ import styles from "./Brand.module.css";
 type Props = {
   href: string;
   className?: string;
-  /** Lettering only, without the cloud: used in the app header. */
-  wordmark?: boolean;
+  /** The cloud only, without the lettering: used in the app header. */
+  mark?: boolean;
 };
 
-export function Brand({ href, className, wordmark = false }: Props) {
-  if (wordmark) {
+export function Brand({ href, className, mark = false }: Props) {
+  if (mark) {
     return (
       <Link href={href} className={`${styles.link} ${className ?? ""}`} aria-label="Uspeyka — на главную">
         <Image
-          src="/wordmark.svg"
+          src="/mark.svg"
           alt="Uspeyka"
-          width={1969}
-          height={472}
+          width={770}
+          height={670}
           priority
           unoptimized
-          className={`${styles.wordmark} ${styles.onLight}`}
+          className={`${styles.mark} ${styles.onLight}`}
         />
         <Image
-          src="/wordmark-dark.svg"
+          src="/mark-dark.svg"
           alt=""
           aria-hidden
-          width={1969}
-          height={472}
+          width={770}
+          height={670}
           unoptimized
-          className={`${styles.wordmark} ${styles.onDark}`}
+          className={`${styles.mark} ${styles.onDark}`}
         />
       </Link>
     );
