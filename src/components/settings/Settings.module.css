@@ -303,3 +303,13 @@
 .card > .linkBtn {
   align-self: flex-start;
 }
+
+.momCard {
+  background: linear-gradient(135deg, #fff1f3, var(--surface-solid) 60%);
+  border-color: rgba(232, 99, 122, 0.2);
+}
+
+:global([data-theme="dark"]) .momCard,
+:global([data-theme="midnight"]) .momCard {
+  background: linear-gradient(135deg, rgba(255, 143, 163, 0.12), var(--surface-solid) 60%);
+}

@@ -25,13 +25,13 @@ export default async function AppLayout({
   // A deleted account can still hold a valid session cookie.
   const exists = await prisma.user.findUnique({
     where: { id: user.id },
-    select: { id: true, theme: true, onboardedAt: true },
+    select: { id: true, theme: true, onboardedAt: true, momMode: true },
   });
   if (!exists) redirect("/goodbye");
   const name = user.name ?? "";
 
   return (
-    <div className="app-shell">
+    <div className={exists.momMode ? "app-shell mom-mode" : "app-shell"}>
       <ActivityPing />
       <ThemeSync theme={exists.theme} />
       <InstallPrompt />
@@ -39,6 +39,7 @@ export default async function AppLayout({
         name={name}
         username={user.username ?? null}
         isAdmin={isAdminEmail(user.email)}
+        momMode={exists.momMode}
       />
       {user.username && !exists.onboardedAt ? <Onboarding /> : null}
       {user.username ? (

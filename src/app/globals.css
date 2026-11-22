@@ -95,6 +95,30 @@
   --glow-2: #161c27;
 }
 
+/* ---------- mom mode: warm and soft, over any light theme ---------- */
+
+:root:has(.mom-mode):not([data-theme="dark"]):not([data-theme="midnight"]) {
+  --bg-top: #fff9f4;
+  --bg-bottom: #fdece4;
+  --glow-1: #ffe1d6;
+  --glow-2: #fff0e0;
+  --accent: #e8637a;
+  --surface-muted: #fff5f0;
+  --track: #f6e6e0;
+  --tint-warn: #fff3e3;
+  --border: rgba(120, 60, 40, 0.08);
+  --shadow: 0 10px 30px rgba(150, 80, 60, 0.1);
+  --shadow-soft: 0 4px 14px rgba(150, 80, 60, 0.08);
+  --radius: 22px;
+  --radius-sm: 16px;
+}
+
+:root:has(.mom-mode)[data-theme="dark"],
+:root:has(.mom-mode)[data-theme="midnight"] {
+  --accent: #ff8fa3;
+  --on-accent: #2a1016;
+}
+
 [data-theme="midnight"] {
   --surface: rgba(22, 34, 74, 0.78);
   --surface-solid: #14204a;

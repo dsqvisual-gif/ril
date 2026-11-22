@@ -35,6 +35,9 @@ model User {
   /// IANA time zone reported by the browser, for "today" in emails.
   timeZone      String?
   reminders     Reminder[]
+  /// "Mom mode": a baby tracker next to the planner, with its own look.
+  momMode       Boolean           @default(false)
+  children      Child[]
   createdAt    DateTime            @default(now())
   tasks        Task[]
   achievements AchievementUnlock[]
@@ -260,4 +263,81 @@ model Reminder {
   createdAt        DateTime @default(now())
 
   @@index([userId])
+}
+
+model Child {
+  id        String       @id @default(cuid())
+  userId    String
+  user      User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name      String
+  /// YYYY-MM-DD
+  birthDate String
+  /// "girl" | "boy" | null
+  sex       String?
+  createdAt DateTime     @default(now())
+  events    BabyEvent[]
+  growth    GrowthRecord[]
+  foods     FoodIntro[]
+
+  @@index([userId])
+}
+
+/// kind: sleep | feed | diaper. A running timer has no endedAt.
+/// data — feed: {type: breast|bottle, side?: left|right, ml?, milk?: formula|breastmilk}; diaper: {pee, poo}.
+model BabyEvent {
+  id        String    @id @default(cuid())
+  childId   String
+  child     Child     @relation(fields: [childId], references: [id], onDelete: Cascade)
+  kind      String
+  startedAt DateTime
+  endedAt   DateTime?
+  data      Json?
+  note      String?
+  createdAt DateTime  @default(now())
+
+  @@index([childId, startedAt])
+}
+
+model GrowthRecord {
+  id       String  @id @default(cuid())
+  childId  String
+  child    Child   @relation(fields: [childId], references: [id], onDelete: Cascade)
+  /// YYYY-MM-DD
+  date     String
+  weightG  Int?
+  heightCm Float?
+  headCm   Float?
+
+  @@index([childId, date])
+}
+
+/// A complementary food being introduced. status: trying | ok | reaction | later.
+model FoodIntro {
+  id        String     @id @default(cuid())
+  childId   String
+  child     Child      @relation(fields: [childId], references: [id], onDelete: Cascade)
+  product   String
+  category  String
+  /// YYYY-MM-DD of the first try
+  startDate String
+  status    String     @default("trying")
+  note      String?
+  createdAt DateTime   @default(now())
+  tries     FoodTry[]
+
+  @@index([childId])
+}
+
+/// One serving of a food being introduced. reaction: none | skin | tummy | other.
+model FoodTry {
+  id       String    @id @default(cuid())
+  foodId   String
+  food     FoodIntro @relation(fields: [foodId], references: [id], onDelete: Cascade)
+  /// YYYY-MM-DD
+  date     String
+  amount   String?
+  reaction String    @default("none")
+  note     String?
+
+  @@index([foodId])
 }

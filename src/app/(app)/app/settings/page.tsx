@@ -10,6 +10,7 @@ import { DEFAULT_THEME, isThemeId } from "@/lib/themes";
 import { replayOnboarding } from "@/lib/actions/onboarding";
 import { listReminders } from "@/lib/actions/reminders";
 import { DigestSettings, RemindersSettings } from "@/components/settings/RemindersSettings";
+import { MomModeSwitch } from "@/components/settings/MomModeSwitch";
 import styles from "@/components/settings/Settings.module.css";
 
 export const metadata: Metadata = {
@@ -29,6 +30,7 @@ export default async function SettingsPage() {
       createdAt: true,
       theme: true,
       digestEnabled: true,
+      momMode: true,
     },
   });
   if (!user) notFound();
@@ -74,6 +76,8 @@ export default async function SettingsPage() {
           <a href="/forgot">восстановлением по коду</a>.
         </p>
       </div>
+
+      <MomModeSwitch initial={user.momMode} />
 
       <div className={styles.card}>
         <h2 className={styles.cardTitle}>Оформление</h2>

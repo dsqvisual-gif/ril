@@ -15,20 +15,31 @@ const LINKS = [
   { href: "/app/achievements", label: "Достижения" },
 ];
 
+const MOM_LINKS = [
+  { href: "/app/baby", label: "Малыш" },
+  { href: "/app", label: "Планер" },
+  { href: "/app/baby/food", label: "Прикорм" },
+  { href: "/app/baby/stats", label: "Статистика" },
+];
+
 type Props = {
   name: string;
   username: string | null;
   /** Shows the link to the admin page. */
   isAdmin?: boolean;
+  /** Mom mode: a short menu around the baby tracker. */
+  momMode?: boolean;
 };
 
 function isActive(href: string, pathname: string) {
-  if (href === "/app") return pathname === "/app";
+  // These have their own sections under them in the menu, so only an exact match counts.
+  if (href === "/app" || href === "/app/baby") return pathname === href;
   return pathname === href || pathname.startsWith(`${href}/`);
 }
 
-export function AppHeader({ name, username, isAdmin = false }: Props) {
-  const links = isAdmin ? [...LINKS, { href: "/app/admin", label: "Админ" }] : LINKS;
+export function AppHeader({ name, username, isAdmin = false, momMode = false }: Props) {
+  const base = momMode ? MOM_LINKS : LINKS;
+  const links = isAdmin ? [...base, { href: "/app/admin", label: "Админ" }] : base;
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
   const [openedOn, setOpenedOn] = useState(pathname);
@@ -49,7 +60,7 @@ export function AppHeader({ name, username, isAdmin = false }: Props) {
 
   return (
     <header className={styles.header}>
-      <Brand href="/app" />
+      <Brand href={momMode ? "/app/baby" : "/app"} />
       <nav className={styles.nav} aria-label="Разделы">
         {links.map((link) => (
           <Link
