@@ -3,14 +3,17 @@ import { prisma } from "@/lib/prisma";
 import { logError } from "@/lib/error-log";
 import { clientIp, rateLimit } from "@/lib/rate-limit";
 import { hasErrorsToken } from "@/lib/errors-token";
+import { corsHeaders, preflight } from "@/lib/mobile-auth";
 
 const MAX_BODY = 16_000;
 
 /** Browsers report their errors here. */
 export async function POST(req: NextRequest) {
-  // Only pages of this site may report.
+  // Only pages of this site and the browser version of the app may report; the
+  // phone apps send no Origin.
   const origin = req.headers.get("origin");
-  if (origin && new URL(origin).host !== req.headers.get("host")) {
+  const cors = corsHeaders(req);
+  if (origin && new URL(origin).host !== req.headers.get("host") && !cors["Access-Control-Allow-Origin"]) {
     return new Response(null, { status: 403 });
   }
   if (!(await rateLimit(`errors:${clientIp(req.headers)}`, 30, 60 * 60))) {
@@ -35,7 +38,11 @@ export async function POST(req: NextRequest) {
     context: str(data.context),
     digest: str(data.digest),
   });
-  return new Response(null, { status: 204 });
+  return new Response(null, { status: 204, headers: cors });
+}
+
+export function OPTIONS(req: NextRequest) {
+  return preflight(req);
 }
 
 /** Open errors, most frequent recent first, for the daily auto-fix task. Needs ERRORS_TOKEN. */

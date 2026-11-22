@@ -1,5 +1,5 @@
-import { Suspense } from "react";
-import { ActivityIndicator, View } from "react-native";
+import { Suspense, useEffect } from "react";
+import { ActivityIndicator, Pressable, Text, View } from "react-native";
 import { Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { SQLiteProvider } from "expo-sqlite";
@@ -9,9 +9,36 @@ import { migrate } from "@/db/migrations";
 import { useIsDark, usePalette } from "@/theme/theme";
 import { SettingsProvider } from "@/theme/settings-context";
 import { AccountProvider, useAccount } from "@/account/account-context";
+import { installErrorReporting, reportAppError } from "@/account/report";
+
+let reporting = false;
+
+/** Instead of a blank screen: what happened, a retry button, and a report to the website. */
+export function ErrorBoundary({ error, retry }: { error: Error; retry: () => Promise<void> }) {
+  useEffect(() => {
+    reportAppError(error, "error boundary");
+  }, [error]);
+  return (
+    <View style={{ flex: 1, alignItems: "center", justifyContent: "center", padding: 24, gap: 12, backgroundColor: "#f1f4fa" }}>
+      <Text style={{ fontSize: 22, fontWeight: "800", color: "#1d1d1f" }}>Что-то пошло не так</Text>
+      <Text style={{ fontSize: 15, color: "#6e6e73", textAlign: "center" }}>
+        Мы уже получили отчёт об ошибке и починим её. Попробуйте ещё раз.
+      </Text>
+      <Text style={{ fontSize: 12, color: "#86868b", textAlign: "center" }}>{error.message}</Text>
+      <Pressable onPress={() => void retry()} style={{ backgroundColor: "#007aff", paddingHorizontal: 22, paddingVertical: 13, borderRadius: 999 }}>
+        <Text style={{ color: "#fff", fontWeight: "800" }}>Попробовать снова</Text>
+      </Pressable>
+    </View>
+  );
+}
 
 export default function RootLayout() {
   const c = usePalette();
+  useEffect(() => {
+    if (reporting) return;
+    reporting = true;
+    installErrorReporting();
+  }, []);
   return (
     <GestureHandlerRootView style={{ flex: 1, backgroundColor: c.bg }}>
       <SafeAreaProvider>
