@@ -7,6 +7,7 @@ import { isAdminEmail } from "@/lib/admin";
 import { ActivityPing } from "@/components/ActivityPing";
 import { InstallPrompt } from "@/components/pwa/InstallPrompt";
 import { ThemeSync } from "@/components/theme/ThemeSync";
+import { Onboarding } from "@/components/onboarding/Onboarding";
 import { prisma } from "@/lib/prisma";
 
 export default async function AppLayout({
@@ -24,7 +25,7 @@ export default async function AppLayout({
   // A deleted account can still hold a valid session cookie.
   const exists = await prisma.user.findUnique({
     where: { id: user.id },
-    select: { id: true, theme: true },
+    select: { id: true, theme: true, onboardedAt: true },
   });
   if (!exists) redirect("/goodbye");
   const name = user.name ?? "";
@@ -39,6 +40,7 @@ export default async function AppLayout({
         username={user.username ?? null}
         isAdmin={isAdminEmail(user.email)}
       />
+      {user.username && !exists.onboardedAt ? <Onboarding /> : null}
       {user.username ? (
         children
       ) : (

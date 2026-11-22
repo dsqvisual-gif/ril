@@ -125,3 +125,13 @@
   font-weight: 800;
   letter-spacing: -0.02em;
 }
+
+.linkBtn {
+  font-size: 0.9rem;
+  font-weight: 650;
+  color: var(--accent);
+}
+
+.linkBtn:hover {
+  text-decoration: underline;
+}

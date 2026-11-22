@@ -7,6 +7,7 @@ import { requireUserId } from "@/lib/session";
 import { DeleteAccount } from "@/components/settings/DeleteAccount";
 import { ThemePicker } from "@/components/theme/ThemePicker";
 import { DEFAULT_THEME, isThemeId } from "@/lib/themes";
+import { replayOnboarding } from "@/lib/actions/onboarding";
 import styles from "@/components/settings/Settings.module.css";
 
 export const metadata: Metadata = {
@@ -59,6 +60,11 @@ export default async function SettingsPage() {
             <dd>{format(user.createdAt, "d MMMM yyyy", { locale: ru })}</dd>
           </div>
         </dl>
+        <form action={replayOnboarding}>
+          <button type="submit" className={styles.linkBtn}>
+            Показать знакомство с приложением ещё раз
+          </button>
+        </form>
         <p className={styles.hint}>
           Забыли пароль или хотите его сменить — воспользуйтесь{" "}
           <a href="/forgot">восстановлением по коду</a>.

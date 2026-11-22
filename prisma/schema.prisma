@@ -26,6 +26,8 @@ model User {
   activeDays    Int                @default(0)
   /// Colour theme id from src/lib/themes.ts.
   theme         String?
+  /// When the first-run tour was finished or skipped; null shows it.
+  onboardedAt   DateTime?
   createdAt    DateTime            @default(now())
   tasks        Task[]
   achievements AchievementUnlock[]
