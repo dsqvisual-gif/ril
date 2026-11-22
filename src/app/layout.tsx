@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Manrope } from "next/font/google";
 import "./globals.css";
 import { ServiceWorker } from "@/components/pwa/ServiceWorker";
+import { ErrorReporter } from "@/components/ErrorReporter";
 import { THEME_COOKIE, THEMES } from "@/lib/themes";
 
 // Runs before first paint so the chosen theme never flashes in as white.
@@ -37,6 +38,7 @@ export default function RootLayout({
       <body>
         {children}
         <ServiceWorker />
+        <ErrorReporter />
       </body>
     </html>
   );

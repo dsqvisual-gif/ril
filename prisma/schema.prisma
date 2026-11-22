@@ -406,3 +406,27 @@ model BabyHealth {
 
   @@index([childId, date])
 }
+
+/// An error users ran into, grouped by fingerprint: one row per distinct error, with a count.
+model ErrorEvent {
+  id          String    @id @default(cuid())
+  fingerprint String    @unique
+  /// "server" or "client".
+  source      String
+  message     String
+  stack       String?
+  /// Where it happened: the route on the server, the page path in the browser.
+  path        String?
+  /// Extra details such as the route type or the browser.
+  context     String?
+  digest      String?
+  count       Int       @default(1)
+  firstSeen   DateTime  @default(now())
+  lastSeen    DateTime  @default(now())
+  /// "open", "fixed" (comes back to "open" if it happens again) or "ignored".
+  status      String    @default("open")
+  fixedAt     DateTime?
+  fixNote     String?
+
+  @@index([status, lastSeen])
+}

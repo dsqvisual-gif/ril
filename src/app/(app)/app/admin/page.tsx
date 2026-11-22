@@ -1,4 +1,6 @@
 import type { Metadata } from "next";
+import Link from "next/link";
+import { prisma } from "@/lib/prisma";
 import { requireAdmin } from "@/lib/admin";
 import { adminStats, formatAdminDate, formatMinutes, listAdminUsers } from "@/lib/admin-users";
 import { auth } from "@/lib/auth";
@@ -16,6 +18,7 @@ export default async function AdminPage() {
   const users = await listAdminUsers();
   const stats = adminStats(users);
   const session = await auth();
+  const openErrors = await prisma.errorEvent.count({ where: { status: "open" } });
 
   return (
     <section className={styles.root}>
@@ -27,9 +30,14 @@ export default async function AdminPage() {
             обновите страницу.
           </p>
         </div>
-        <a className="btn btn-primary" href="/app/admin/users.csv">
-          Скачать таблицу (CSV)
-        </a>
+        <div className={styles.headerActions}>
+          <Link className="btn btn-ghost" href="/app/admin/errors">
+            Ошибки{openErrors > 0 ? ` · ${openErrors}` : ""}
+          </Link>
+          <a className="btn btn-primary" href="/app/admin/users.csv">
+            Скачать таблицу (CSV)
+          </a>
+        </div>
       </header>
 
       <div className={styles.stats}>

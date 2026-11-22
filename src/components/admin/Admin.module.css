@@ -256,3 +256,9 @@
   color: var(--ink-tertiary);
   border-top: 1px solid var(--border);
 }
+
+.headerActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}

@@ -1,0 +1,34 @@
+.wrap {
+  min-height: 70vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.9rem;
+  padding: 2rem 1rem;
+  text-align: center;
+}
+
+.wrap h1 {
+  font-size: 1.6rem;
+  letter-spacing: -0.03em;
+}
+
+.wrap p {
+  max-width: 26rem;
+  color: var(--ink-secondary);
+  line-height: 1.5;
+}
+
+.mascot {
+  width: 120px;
+  height: auto;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.6rem;
+  margin-top: 0.4rem;
+}
