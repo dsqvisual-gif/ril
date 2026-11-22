@@ -160,3 +160,8 @@
 .apple:hover {
   background: #1d1d1f;
 }
+
+.fieldHint {
+  font-size: 0.78rem;
+  color: var(--ink-tertiary);
+}

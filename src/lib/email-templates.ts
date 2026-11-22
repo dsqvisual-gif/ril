@@ -6,8 +6,14 @@ import { SITE_URL } from "@/lib/site";
 
 const SETTINGS = `${SITE_URL}/app/settings`;
 
+const UNSUBSCRIBE_TEXT = "Если вам не нужны уведомления, вы можете их отключить в настройках профиля.";
+
 function footer(what: string): string {
-  return `Вы получили это письмо, потому что включили ${what} в Uspeyka. <a href="${SETTINGS}" style="color:#8a90a8">Отключить в профиле</a>`;
+  return `Вы получили это письмо, потому что включили ${what} в Uspeyka.<br><span style="font-size:11px">Если вам не нужны уведомления, вы можете их отключить в <a href="${SETTINGS}" style="color:#8a90a8">настройках профиля</a>.</span>`;
+}
+
+function textFooter(): string {
+  return `\n\n—\n${UNSUBSCRIBE_TEXT} ${SETTINGS}`;
 }
 
 export type DigestTask = { title: string; time: string | null; important: boolean; urgent: boolean };
@@ -41,7 +47,7 @@ export function digestEmail(to: string, name: string, today: string, tasks: Dige
     `${SITE_URL}/app`,
   ]
     .filter(Boolean)
-    .join("\n");
+    .join("\n") + textFooter();
   return {
     to,
     subject: `План на сегодня: ${tasks.length} ${plural(tasks.length)}`,
@@ -69,7 +75,7 @@ export function reminderEmail(
     to,
     subject: headline,
     html: letter(inner, footer("регулярные напоминания")),
-    text: `${headline}\nДата: ${day}. Повторяется ${repeat}.\n${SITE_URL}/app`,
+    text: `${headline}\nДата: ${day}. Повторяется ${repeat}.\n${SITE_URL}/app` + textFooter(),
   };
 }
 

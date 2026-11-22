@@ -3,6 +3,7 @@
 import { LoginRateLimited, signIn } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { AuthError } from "next-auth";
+import { transliterate } from "@/lib/username";
 
 export type LoginState = {
   error?: string;
@@ -12,9 +13,11 @@ export async function loginAction(
   _prev: LoginState,
   formData: FormData,
 ): Promise<LoginState> {
-  const login = String(formData.get("login") ?? "")
+  const typed = String(formData.get("login") ?? "")
     .toLowerCase()
     .trim();
+  // Nicknames are Latin now; an old Cyrillic one is looked up by its transliteration.
+  const login = typed.includes("@") ? typed : transliterate(typed.replace(/^@/, ""));
   const password = String(formData.get("password") ?? "");
 
   if (!login || !password) {

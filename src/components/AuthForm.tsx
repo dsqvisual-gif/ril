@@ -77,9 +77,14 @@ export function AuthForm({ mode, action, notice, apple = false }: Props) {
                 minLength={3}
                 maxLength={20}
                 autoComplete="username"
-                placeholder="данил"
+                autoCapitalize="off"
+                spellCheck={false}
+                placeholder="danil"
+                pattern="@?[A-Za-z0-9_]{3,20}"
+                title="Только английские буквы, цифры и _"
                 defaultValue={values.username}
               />
+              <small className={styles.fieldHint}>Только английские буквы, цифры и _</small>
             </div>
           </>
         ) : null}

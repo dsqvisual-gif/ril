@@ -33,7 +33,11 @@ export function NicknameGate({ suggested }: Props) {
           maxLength={20}
           defaultValue={suggested}
           autoComplete="username"
-          placeholder="например, данил"
+          autoCapitalize="off"
+          spellCheck={false}
+          placeholder="например, danil"
+          pattern="@?[A-Za-z0-9_]{3,20}"
+          title="Только английские буквы, цифры и _"
         />
       </div>
       {state.error ? <p className="form-error">{state.error}</p> : null}

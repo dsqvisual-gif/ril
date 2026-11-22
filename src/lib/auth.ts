@@ -7,7 +7,7 @@ import { prisma } from "@/lib/prisma";
 import { authConfig } from "@/lib/auth.config";
 import { clientIp, rateLimit } from "@/lib/rate-limit";
 import { consumeCode, normalizeEmail, type CodeCheck } from "@/lib/email-codes";
-import { usernameKey } from "@/lib/username";
+import { transliterate, usernameKey } from "@/lib/username";
 
 export class LoginRateLimited extends CredentialsSignin {
   code = "rate_limited";
@@ -198,7 +198,8 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           return null;
         }
 
-        const key = login.toLowerCase().trim();
+        const typed = login.toLowerCase().trim();
+        const key = typed.includes("@") ? typed : transliterate(typed.replace(/^@/, ""));
         const allowed =
           (await rateLimit(`login:ip:${clientIp(request.headers)}`, 30, 15 * 60)) &&
           (await rateLimit(`login:acct:${key}`, 10, 15 * 60));

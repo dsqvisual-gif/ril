@@ -129,7 +129,7 @@ export function FriendsPanel({ initial }: Props) {
           id="people-search"
           value={query}
           onChange={(event) => setQuery(event.target.value)}
-          placeholder="Ник, например данил"
+          placeholder="Ник, например danil"
         />
       </div>
 
