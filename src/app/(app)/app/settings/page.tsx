@@ -8,6 +8,8 @@ import { DeleteAccount } from "@/components/settings/DeleteAccount";
 import { ThemePicker } from "@/components/theme/ThemePicker";
 import { DEFAULT_THEME, isThemeId } from "@/lib/themes";
 import { replayOnboarding } from "@/lib/actions/onboarding";
+import { listReminders } from "@/lib/actions/reminders";
+import { DigestSettings, RemindersSettings } from "@/components/settings/RemindersSettings";
 import styles from "@/components/settings/Settings.module.css";
 
 export const metadata: Metadata = {
@@ -26,9 +28,11 @@ export default async function SettingsPage() {
       passwordHash: true,
       createdAt: true,
       theme: true,
+      digestEnabled: true,
     },
   });
   if (!user) notFound();
+  const reminders = await listReminders();
 
   return (
     <section className={styles.root}>
@@ -75,6 +79,10 @@ export default async function SettingsPage() {
         <h2 className={styles.cardTitle}>Оформление</h2>
         <ThemePicker initial={isThemeId(user.theme) ? user.theme : DEFAULT_THEME} />
       </div>
+
+      <DigestSettings digestEnabled={user.digestEnabled} />
+
+      <RemindersSettings initialReminders={reminders} />
 
       <DeleteAccount confirmWord={user.username ? `@${user.username}` : user.email} />
     </section>

@@ -135,3 +135,171 @@
 .linkBtn:hover {
   text-decoration: underline;
 }
+
+.switchRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  cursor: pointer;
+}
+
+.switchRow span {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.switchRow small {
+  font-size: 0.82rem;
+  color: var(--ink-secondary);
+}
+
+.switch {
+  appearance: none;
+  flex: none;
+  position: relative;
+  width: 46px;
+  height: 28px;
+  border-radius: 99px;
+  background: var(--track);
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+
+.switch::after {
+  content: "";
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
+  transition: transform 0.2s ease;
+}
+
+.switch:checked {
+  background: var(--accent);
+}
+
+.switch:checked::after {
+  transform: translateX(18px);
+}
+
+.dangerLink {
+  font-size: 0.88rem;
+  font-weight: 650;
+  color: var(--danger);
+}
+
+.reminders {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.reminder {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.75rem 0.85rem;
+  border-radius: var(--radius-sm);
+  background: var(--surface-muted);
+}
+
+.reminderTitle {
+  font-weight: 750;
+}
+
+.reminderMeta {
+  font-size: 0.84rem;
+  color: var(--ink-secondary);
+}
+
+.reminderActions {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.3rem;
+}
+
+.reminderForm {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+  padding: 0.9rem;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: var(--surface-muted);
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  font-size: 0.8rem;
+  font-weight: 650;
+  color: var(--ink-secondary);
+}
+
+.reminderForm .input {
+  width: 100%;
+  background: var(--surface-solid);
+  color: var(--ink);
+}
+
+.reminderForm .input:focus {
+  border-color: color-mix(in srgb, var(--accent) 45%, transparent);
+  box-shadow: 0 0 0 4px var(--accent-soft);
+}
+
+.twoCols {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.6rem;
+}
+
+.customRepeat {
+  display: grid;
+  grid-template-columns: auto 5rem 1fr;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.9rem;
+}
+
+.check {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.check input {
+  width: 1rem;
+  height: 1rem;
+  accent-color: var(--accent);
+}
+
+@media (max-width: 600px) {
+  .twoCols {
+    grid-template-columns: 1fr;
+  }
+
+  .reminder {
+    flex-direction: column;
+  }
+
+  .reminderActions {
+    flex-direction: row;
+    gap: 1rem;
+  }
+}
+
+.card > .linkBtn {
+  align-self: flex-start;
+}

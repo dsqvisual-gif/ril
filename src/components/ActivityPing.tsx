@@ -17,7 +17,8 @@ export function ActivityPing() {
       if (stopped || document.visibilityState !== "visible") return;
       try {
         // The account was deleted: end the session.
-        if (!(await pingActivity())) router.replace("/goodbye");
+        const zone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+        if (!(await pingActivity(zone))) router.replace("/goodbye");
       } catch {
         // Offline or a deploy in progress: the next ping will catch up.
       }

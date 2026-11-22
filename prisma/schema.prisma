@@ -28,6 +28,13 @@ model User {
   theme         String?
   /// When the first-run tour was finished or skipped; null shows it.
   onboardedAt   DateTime?
+  /// Morning email with the day's plan.
+  digestEnabled Boolean           @default(false)
+  /// Day (YYYY-MM-DD, user's time) the last digest went out, so it is sent once a day.
+  lastDigestOn  String?
+  /// IANA time zone reported by the browser, for "today" in emails.
+  timeZone      String?
+  reminders     Reminder[]
   createdAt    DateTime            @default(now())
   tasks        Task[]
   achievements AchievementUnlock[]
@@ -232,4 +239,25 @@ model EmailCode {
   createdAt DateTime @default(now())
 
   @@index([email, purpose])
+}
+
+/// Something that repeats (a checkup four times a year): emailed ahead and added to the planner.
+model Reminder {
+  id               String   @id @default(cuid())
+  userId           String
+  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title            String
+  /// Repeats every `everyCount` `everyUnit`s: day | week | month | year.
+  everyCount       Int
+  everyUnit        String
+  /// Next occurrence, YYYY-MM-DD.
+  nextDate         String
+  remindDaysBefore Int      @default(3)
+  addToPlanner     Boolean  @default(true)
+  /// Occurrence (nextDate) already emailed about / already put into the planner.
+  lastNotifiedFor  String?
+  lastPlannedFor   String?
+  createdAt        DateTime @default(now())
+
+  @@index([userId])
 }

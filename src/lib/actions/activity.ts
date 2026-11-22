@@ -6,6 +6,16 @@ import { prisma } from "@/lib/prisma";
 /** Pings closer than this are ignored, so each counted ping is about one minute of use. */
 const MIN_GAP_MS = 50_000;
 
+function validTimeZone(zone: string): boolean {
+  if (zone.length > 64) return false;
+  try {
+    new Intl.DateTimeFormat("en", { timeZone: zone });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 function almatyDay(date: Date): string {
   return new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Almaty" }).format(date);
 }
@@ -15,16 +25,21 @@ function almatyDay(date: Date): string {
  * of use, counts a new active day and stamps the last visit.
  * Returns false when the account no longer exists.
  */
-export async function pingActivity(): Promise<boolean> {
+export async function pingActivity(timeZone?: string): Promise<boolean> {
   const session = await auth();
   const userId = session?.user?.id;
   if (!userId) return true;
 
   const user = await prisma.user.findUnique({
     where: { id: userId },
-    select: { lastSeenAt: true },
+    select: { lastSeenAt: true, timeZone: true },
   });
   if (!user) return false;
+
+  // Remember the browser's time zone, so morning emails know when "today" is.
+  if (timeZone && timeZone !== user.timeZone && validTimeZone(timeZone)) {
+    await prisma.user.update({ where: { id: userId }, data: { timeZone } });
+  }
 
   const now = new Date();
   if (user.lastSeenAt && now.getTime() - user.lastSeenAt.getTime() < MIN_GAP_MS) return true;
