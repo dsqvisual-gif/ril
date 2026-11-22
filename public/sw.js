@@ -1,5 +1,5 @@
 /* Uspeyka service worker: offline page, cached static files, nothing private. */
-const VERSION = "uspeyka-v1";
+const VERSION = "uspeyka-v2";
 const OFFLINE_URL = "/offline";
 const PRECACHE = [OFFLINE_URL, "/mascot.webp", "/logo.svg", "/icon-192.png"];
 
