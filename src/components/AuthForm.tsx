@@ -112,6 +112,18 @@ export function AuthForm({ mode, action, notice, apple = false }: Props) {
           />
         </div>
 
+        {mode === "register" ? (
+          <label className={styles.consent}>
+            <input type="checkbox" name="consent" required defaultChecked={values.consent === "on"} />
+            <span>
+              Принимаю <Link href="/terms" target="_blank">правила использования</Link> и даю{" "}
+              <Link href="/privacy#consent" target="_blank">
+                согласие на сбор и обработку персональных данных
+              </Link>
+            </span>
+          </label>
+        ) : null}
+
         {state.error ? <p className="form-error">{state.error}</p> : null}
         {notice ? <p className={styles.note}>{notice}</p> : null}
 
@@ -141,15 +153,14 @@ export function AuthForm({ mode, action, notice, apple = false }: Props) {
         </form>
       ) : null}
 
-      {mode === "register" ? (
-        <p className={styles.legal}>
-          Регистрируясь, вы соглашаетесь с{" "}
-          <Link href="/privacy" target="_blank">
-            политикой конфиденциальности
-          </Link>
-          .
-        </p>
-      ) : null}
+      <p className={styles.legal}>
+        {mode === "register" ? "Регистрируясь" : "Входя"} через {apple ? "Google или Apple" : "Google"}, вы
+        принимаете <Link href="/terms" target="_blank">правила использования</Link> и{" "}
+        <Link href="/privacy" target="_blank">
+          политику конфиденциальности
+        </Link>
+        .
+      </p>
 
       <p className={styles.switch}>
         {mode === "login" ? (

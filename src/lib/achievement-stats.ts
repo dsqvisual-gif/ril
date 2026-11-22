@@ -3,6 +3,11 @@ import { prisma } from "@/lib/prisma";
 import { fromDateKey, shiftDateKey } from "@/lib/dates";
 import { ACHIEVEMENTS, type Stats } from "@/lib/achievements";
 
+/** Calendar day in Almaty, the clock activity days are counted by. */
+export function almatyDay(date: Date): string {
+  return new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Almaty" }).format(date);
+}
+
 /** UTC calendar day of a timestamp, as a date key. */
 function dayOf(date: Date): string {
   return date.toISOString().slice(0, 10);
@@ -23,7 +28,18 @@ function longestStreak(days: Set<string>): number {
 export async function computeStats(userId: string): Promise<Stats> {
   const access = { OR: [{ userId }, { shares: { some: { userId } } }] };
 
-  const [tasks, friends, goals, companiesOwned, teamTasks] = await Promise.all([
+  const [user, tasks, friends, goals, companiesOwned, teamTasks] = await Promise.all([
+    prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        createdAt: true,
+        activeDays: true,
+        activeMinutes: true,
+        useStreak: true,
+        bestUseStreak: true,
+        lastActiveOn: true,
+      },
+    }),
     prisma.task.findMany({
       where: access,
       select: {
@@ -81,6 +97,15 @@ export async function computeStats(userId: string): Promise<Stats> {
     companiesOwned,
     teamDone: teamTasks.length,
     teamOnTime: 0,
+    bestUseStreak: user?.bestUseStreak ?? 0,
+    // The current run counts only while the last visit was today or yesterday.
+    useStreak:
+      user?.lastActiveOn && user.lastActiveOn >= shiftDateKey(almatyDay(new Date()), -1)
+        ? user.useStreak
+        : 0,
+    activeDays: user?.activeDays ?? 0,
+    daysWithUs: user ? Math.max(0, differenceInCalendarDays(new Date(), user.createdAt)) : 0,
+    minutesInApp: user?.activeMinutes ?? 0,
   };
 
   // Tasks are grouped by their planned day: overdue ones move to today, so a

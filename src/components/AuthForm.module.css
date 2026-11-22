@@ -165,3 +165,25 @@
   font-size: 0.78rem;
   color: var(--ink-tertiary);
 }
+
+.consent {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.6rem;
+  align-items: start;
+  font-size: 0.84rem;
+  line-height: 1.4;
+  color: var(--ink-secondary);
+  cursor: pointer;
+}
+
+.consent input {
+  width: 18px;
+  height: 18px;
+  margin-top: 0.1rem;
+  accent-color: var(--accent);
+}
+
+.consent a {
+  color: var(--accent);
+}

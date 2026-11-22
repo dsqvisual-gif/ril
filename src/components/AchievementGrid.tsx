@@ -1,6 +1,6 @@
 import { format } from "date-fns";
 import { ru } from "date-fns/locale";
-import { ACHIEVEMENTS, CATEGORIES, type Stats } from "@/lib/achievements";
+import { ACHIEVEMENTS, CATEGORIES, STAT_LABELS, type StatKey, type Stats } from "@/lib/achievements";
 import styles from "./AchievementGrid.module.css";
 
 type Props = {
@@ -31,6 +31,8 @@ export function AchievementGrid({ stats, unlocked }: Props) {
           <span style={{ width: `${percent}%` }} />
         </div>
       </header>
+
+      <MyNumbers stats={stats} />
 
       {next.length > 0 ? (
         <section className={styles.next}>
@@ -83,9 +85,16 @@ export function AchievementGrid({ stats, unlocked }: Props) {
                     <h3>{hidden ? "Секретное достижение" : a.title}</h3>
                     <p>{hidden ? "Откроется, когда ты сделаешь что-то особенное" : a.description}</p>
                     {isOpen ? (
-                      <span className={styles.date}>
-                        Получено {format(new Date(at!), "d MMMM yyyy", { locale: ru })}
-                      </span>
+                      <>
+                        <span className={styles.date}>
+                          Получено {format(new Date(at!), "d MMMM yyyy", { locale: ru })}
+                        </span>
+                        {stats[a.stat] > 0 ? (
+                          <span className={styles.result}>
+                            <b>{formatNumber(stats[a.stat])}</b> {STAT_LABELS[a.stat]}
+                          </span>
+                        ) : null}
+                      </>
                     ) : hidden ? null : (
                       <>
                         <div className={styles.bar}>
@@ -105,4 +114,49 @@ export function AchievementGrid({ stats, unlocked }: Props) {
       })}
     </div>
   );
+}
+
+const NUMBERS: { stat: StatKey; icon: string; label: string; format?: (n: number) => string }[] = [
+  { stat: "tasksDone", icon: "✅", label: "дел сделано" },
+  { stat: "importantDone", icon: "⭐", label: "важных из них" },
+  { stat: "bestDay", icon: "⚡", label: "рекорд дел за день" },
+  { stat: "bestStreak", icon: "🔥", label: "дней — лучшая серия дел" },
+  { stat: "useStreak", icon: "📅", label: "дней подряд заходишь" },
+  { stat: "activeDays", icon: "☕", label: "дней в Uspeyka" },
+  { stat: "daysWithUs", icon: "🎂", label: "дней с нами" },
+  { stat: "minutesInApp", icon: "⏱️", label: "в приложении", format: formatMinutes },
+  { stat: "goalsDone", icon: "🌈", label: "целей достигнуто" },
+  { stat: "sharedDone", icon: "👯", label: "совместных дел" },
+];
+
+/** The person's own totals: they keep growing after every achievement is earned. */
+function MyNumbers({ stats }: { stats: Stats }) {
+  return (
+    <section className={styles.numbers} aria-label="Мои цифры">
+      <h2 className={styles.nextTitle}>Мои цифры</h2>
+      <div className={styles.numberGrid}>
+        {NUMBERS.map((n) => (
+          <div key={n.stat} className={styles.numberTile}>
+            <span className={styles.numberIcon} aria-hidden>
+              {n.icon}
+            </span>
+            <b className={styles.numberValue}>
+              {n.format ? n.format(stats[n.stat]) : formatNumber(stats[n.stat])}
+            </b>
+            <span className={styles.numberLabel}>{n.label}</span>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function formatNumber(n: number): string {
+  return n.toLocaleString("ru-RU");
+}
+
+function formatMinutes(minutes: number): string {
+  if (minutes < 60) return `${minutes} мин`;
+  const hours = Math.floor(minutes / 60);
+  return hours < 100 ? `${hours} ч ${minutes % 60} мин` : `${formatNumber(hours)} ч`;
 }

@@ -24,6 +24,12 @@ model User {
   lastSeenAt    DateTime?
   activeMinutes Int                @default(0)
   activeDays    Int                @default(0)
+  /// Consecutive days with at least one visit, by the Almaty calendar.
+  useStreak     Int                @default(0)
+  bestUseStreak Int                @default(0)
+  lastActiveOn  String?
+  /// When the person accepted the terms of use and the processing of personal data.
+  termsAcceptedAt DateTime?
   /// Colour theme id from src/lib/themes.ts.
   theme         String?
   /// When the first-run tour was finished or skipped; null shows it.

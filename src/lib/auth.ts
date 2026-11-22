@@ -63,6 +63,7 @@ async function authorizeEmailCode(credentials: Partial<Record<string, unknown>> 
         usernameKey: usernameKey(pending.username),
         passwordHash: pending.passwordHash,
         emailVerified: new Date(),
+        termsAcceptedAt: new Date(),
       },
     });
     return { id: user.id, email: user.email, name: user.name, username: user.username };
@@ -141,6 +142,8 @@ async function upsertOAuthUser(input: {
       name: input.name.slice(0, 80),
       image: input.image,
       emailVerified: new Date(),
+      // The sign-in buttons say that continuing accepts the terms.
+      termsAcceptedAt: new Date(),
     },
   });
 }

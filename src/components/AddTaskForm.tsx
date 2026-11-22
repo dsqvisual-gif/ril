@@ -1,12 +1,12 @@
 "use client";
 
 import { useId, useState, type FormEvent } from "react";
-import Link from "next/link";
 import styles from "./AddTaskForm.module.css";
 import type { CreateTaskInput, TaskItemInput } from "@/lib/actions/tasks";
 import type { FriendOption } from "@/lib/actions/friends";
 import { TASK_NOTE_MAX, TASK_TITLE_MAX } from "@/lib/validation";
 import { ChecklistEditor } from "./planner/ChecklistEditor";
+import { FriendPicker, friendLabel } from "./planner/FriendPicker";
 import { errorText } from "@/lib/action-result";
 
 type Props = {
@@ -72,6 +72,7 @@ export function TaskEditor({
   const [withNote, setWithNote] = useState(Boolean(initial.note));
   const [items, setItems] = useState<TaskItemInput[]>(initial.items ?? []);
   const [withList, setWithList] = useState((initial.items?.length ?? 0) > 0);
+  const [pickingFriends, setPickingFriends] = useState(false);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -122,6 +123,15 @@ export function TaskEditor({
       <div className={styles.extras}>
         <button
           type="button"
+          className={friendIds.length > 0 || pickingFriends ? styles.extraOn : styles.extra}
+          aria-expanded={pickingFriends}
+          onClick={() => setPickingFriends((value) => !value)}
+        >
+          <span aria-hidden>👥</span>{" "}
+          {friendIds.length > 0 ? `С друзьями · ${friendIds.length}` : "Запланировать с другом"}
+        </button>
+        <button
+          type="button"
           className={withList ? styles.extraOn : styles.extra}
           aria-pressed={withList}
           onClick={() => setWithList((value) => !value)}
@@ -137,6 +147,32 @@ export function TaskEditor({
           <span aria-hidden>✎</span> Заметка
         </button>
       </div>
+
+      {pickingFriends ? (
+        <FriendPicker
+          friends={friends}
+          selected={friendIds}
+          onToggle={toggleFriend}
+          onDone={() => setPickingFriends(false)}
+        />
+      ) : friendIds.length > 0 ? (
+        <div className={styles.chips}>
+          {friendIds.map((friendId) => {
+            const friend = friends.find((f) => f.id === friendId);
+            return (
+              <button
+                key={friendId}
+                type="button"
+                className={styles.chipOn}
+                onClick={() => toggleFriend(friendId)}
+                aria-label={`Убрать ${friend ? friendLabel(friend) : "друга"}`}
+              >
+                {friend ? friendLabel(friend) : "друг"} ×
+              </button>
+            );
+          })}
+        </div>
+      ) : null}
 
       {withList ? (
         <div className={styles.section}>
@@ -213,31 +249,6 @@ export function TaskEditor({
         </div>
       ) : null}
 
-      {friends.length > 0 ? (
-        <fieldset className={styles.friends}>
-          <legend>Совместно с</legend>
-          <div className={styles.chips}>
-            {friends.map((friend) => {
-              const selected = friendIds.includes(friend.id);
-              return (
-                <button
-                  key={friend.id}
-                  type="button"
-                  className={selected ? styles.chipOn : styles.chip}
-                  aria-pressed={selected}
-                  onClick={() => toggleFriend(friend.id)}
-                >
-                  {friend.alias || `@${friend.username}`}
-                </button>
-              );
-            })}
-          </div>
-        </fieldset>
-      ) : (
-        <p className={styles.hint}>
-          <Link href="/app/friends">Добавьте друзей</Link>, чтобы делать совместные дела
-        </p>
-      )}
 
       {error ? <p className="form-error">{error}</p> : null}
 

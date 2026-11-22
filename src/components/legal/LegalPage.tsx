@@ -24,6 +24,7 @@ export function LegalPage({ title, lead, children }: Props) {
       <footer className={styles.footer}>
         <Link href="/">Главная</Link>
         <Link href="/privacy">Конфиденциальность</Link>
+        <Link href="/terms">Правила</Link>
         <Link href="/security">Безопасность</Link>
       </footer>
     </div>

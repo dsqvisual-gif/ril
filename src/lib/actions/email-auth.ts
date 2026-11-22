@@ -74,6 +74,10 @@ export async function startRegistration(
     return { error: `Пароль должен быть не короче ${PASSWORD_MIN} символов` };
   }
 
+  if (formData.get("consent") !== "on") {
+    return { error: "Чтобы зарегистрироваться, примите правила и согласие на обработку данных" };
+  }
+
   if (await prisma.user.findUnique({ where: { email }, select: { id: true } })) {
     return { error: "Пользователь с таким email уже есть. Войдите или восстановите пароль." };
   }

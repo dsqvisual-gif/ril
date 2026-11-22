@@ -22,11 +22,16 @@ export type StatKey =
   | "perfectGoals"
   | "companiesOwned"
   | "teamDone"
-  | "teamOnTime";
+  | "teamOnTime"
+  | "bestUseStreak"
+  | "useStreak"
+  | "activeDays"
+  | "daysWithUs"
+  | "minutesInApp";
 
 export type Stats = Record<StatKey, number>;
 
-export type AchievementCategory = "tasks" | "delay" | "rhythm" | "goals" | "people";
+export type AchievementCategory = "tasks" | "delay" | "rhythm" | "goals" | "people" | "loyalty";
 
 export type AchievementDef = {
   code: string;
@@ -46,6 +51,7 @@ export const CATEGORIES: { id: AchievementCategory; title: string; lead: string 
   { id: "rhythm", title: "Ритм", lead: "Серии, рекорды и идеальные дни" },
   { id: "goals", title: "Цели", lead: "Большие мечты, шаги и записи" },
   { id: "people", title: "Вместе", lead: "Друзья, общие дела и команда" },
+  { id: "loyalty", title: "С нами", lead: "За то, что возвращаешься каждый день" },
 ];
 
 const A = (
@@ -118,7 +124,54 @@ export const ACHIEVEMENTS: AchievementDef[] = [
   A("team_done_1", "people", "🧩", "Свой в команде", "Выполни задачу, назначенную тебе в команде", "teamDone", 1),
   A("team_done_25", "people", "🏛️", "Опора команды", "Выполни 25 командных задач", "teamDone", 25),
   A("team_on_time_10", "people", "🥷", "Дедлайн-ниндзя", "Сдай 10 командных задач до дедлайна", "teamOnTime", 10),
+
+  // ---------- loyalty ----------
+  A("use_3", "loyalty", "🌱", "Привет снова", "Заходи в Uspeyka 3 дня подряд", "bestUseStreak", 3),
+  A("use_7", "loyalty", "📅", "Неделя без пропусков", "Заходи 7 дней подряд", "bestUseStreak", 7),
+  A("use_30", "loyalty", "🗓️", "Привычка планировать", "Заходи 30 дней подряд", "bestUseStreak", 30),
+  A("use_100", "loyalty", "🏅", "Сотня подряд", "Заходи 100 дней подряд", "bestUseStreak", 100),
+  A("use_365", "loyalty", "👑", "Год без выходных", "Заходи каждый день целый год", "bestUseStreak", 365, true),
+  A("active_10", "loyalty", "☕", "Завсегдатай", "Проведи в Uspeyka 10 разных дней", "activeDays", 10),
+  A("active_50", "loyalty", "🏠", "Как дома", "Проведи в Uspeyka 50 разных дней", "activeDays", 50),
+  A("active_100", "loyalty", "💯", "Сто дней в деле", "Проведи в Uspeyka 100 разных дней", "activeDays", 100),
+  A("active_365", "loyalty", "🌟", "Триста шестьдесят пять", "Проведи в Uspeyka 365 разных дней", "activeDays", 365),
+  A("age_30", "loyalty", "🎂", "Первый месяц", "Будь с Uspeyka уже месяц", "daysWithUs", 30),
+  A("age_180", "loyalty", "🌗", "Полгода вместе", "Будь с Uspeyka полгода", "daysWithUs", 180),
+  A("age_365", "loyalty", "🎉", "Годовщина", "Будь с Uspeyka целый год", "daysWithUs", 365),
+  A("age_730", "loyalty", "🐘", "Старожил", "Будь с Uspeyka два года", "daysWithUs", 730, true),
 ];
+
+/** How to name a person's own number for each stat, shown once an achievement is earned. */
+export const STAT_LABELS: Record<StatKey, string> = {
+  tasksDone: "дел сделано",
+  importantDone: "важных дел сделано",
+  urgentDone: "срочных дел сделано",
+  delayed3Done: "давних дел закрыто",
+  maxDelayDays: "дней — самое долгое ожидание",
+  bestDay: "дел — рекорд за день",
+  cleanDays: "идеальных дней",
+  bestStreak: "дней — лучшая серия",
+  sharedDone: "совместных дел",
+  friends: "друзей",
+  keptThenDone: "дел со второго шанса",
+  comebackDay: "давних дел — рекорд за день",
+  goalsCreated: "целей записано",
+  maxGoalSteps: "шагов в самой большой цели",
+  stepsDone: "шагов выполнено",
+  entries: "записей о прогрессе",
+  goalsDone: "целей достигнуто",
+  goalsOnTime: "целей в срок",
+  longestGoalDays: "дней — самый долгий путь к цели",
+  perfectGoals: "идеальных целей",
+  companiesOwned: "своих компаний",
+  teamDone: "командных задач",
+  teamOnTime: "задач до дедлайна",
+  bestUseStreak: "дней подряд — рекорд заходов",
+  useStreak: "дней подряд сейчас",
+  activeDays: "дней в Uspeyka",
+  daysWithUs: "дней с Uspeyka",
+  minutesInApp: "минут в приложении",
+};
 
 export function achievementByCode(code: string): AchievementDef | undefined {
   return ACHIEVEMENTS.find((a) => a.code === code);
