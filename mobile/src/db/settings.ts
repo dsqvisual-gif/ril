@@ -5,9 +5,11 @@ export type ThemePref = "system" | "light" | "dark";
 export type Settings = {
   name: string;
   theme: ThemePref;
+  /** The welcome screens were shown. */
+  onboarded: boolean;
 };
 
-export const DEFAULT_SETTINGS: Settings = { name: "", theme: "system" };
+export const DEFAULT_SETTINGS: Settings = { name: "", theme: "system", onboarded: false };
 
 export async function loadSettings(db: SQLiteDatabase): Promise<Settings> {
   const rows = await db.getAllAsync<{ key: string; value: string }>("SELECT key, value FROM settings");
@@ -16,6 +18,7 @@ export async function loadSettings(db: SQLiteDatabase): Promise<Settings> {
   return {
     name: map.get("name") ?? DEFAULT_SETTINGS.name,
     theme: theme === "light" || theme === "dark" ? theme : "system",
+    onboarded: map.get("onboarded") === "true",
   };
 }
 

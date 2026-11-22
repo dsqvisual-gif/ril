@@ -48,13 +48,23 @@ export default function SettingsHub() {
           />
         </SettingsGroup>
 
+        <SettingsGroup title="Успехи">
+          <SettingsRow icon="🏆" tone="#fff1d6" title="Достижения и мои цифры" value="Скоро" last />
+        </SettingsGroup>
+
         <SettingsGroup title="Уведомления">
           <SettingsRow icon="🔔" tone="#dff1ff" title="Напоминания о делах" value="Скоро" />
           <SettingsRow icon="🔁" tone="#ddf7e8" title="Регулярные напоминания" value="Скоро" last />
         </SettingsGroup>
 
         <SettingsGroup title="Аккаунт">
-          <SettingsRow icon="☁️" tone="#eceef3" title="Вход и синхронизация" value="Скоро" />
+          <SettingsRow
+            icon="☁️"
+            tone="#eceef3"
+            title="Аккаунт Uspeyka"
+            value="Не выполнен вход"
+            onPress={() => router.push("/settings/account")}
+          />
           <SettingsRow
             icon="💡"
             tone="#fff6c7"

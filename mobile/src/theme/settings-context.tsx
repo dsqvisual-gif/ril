@@ -4,11 +4,14 @@ import { DEFAULT_SETTINGS, loadSettings, saveSetting, type Settings } from "@/db
 
 type Ctx = {
   settings: Settings;
+  /** False until the stored settings are read, so screens do not flash defaults. */
+  loaded: boolean;
   update: <K extends keyof Settings>(key: K, value: Settings[K]) => Promise<void>;
 };
 
 const SettingsContext = createContext<Ctx>({
   settings: DEFAULT_SETTINGS,
+  loaded: false,
   update: async () => {},
 });
 
@@ -16,11 +19,14 @@ const SettingsContext = createContext<Ctx>({
 export function SettingsProvider({ children }: { children: React.ReactNode }) {
   const db = useSQLiteContext();
   const [settings, setSettings] = useState<Settings>(DEFAULT_SETTINGS);
+  const [loaded, setLoaded] = useState(false);
 
   useEffect(() => {
     let alive = true;
     void loadSettings(db).then((s) => {
-      if (alive) setSettings(s);
+      if (!alive) return;
+      setSettings(s);
+      setLoaded(true);
     });
     return () => {
       alive = false;
@@ -35,7 +41,7 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
     [db],
   );
 
-  const value = useMemo(() => ({ settings, update }), [settings, update]);
+  const value = useMemo(() => ({ settings, loaded, update }), [settings, loaded, update]);
   return <SettingsContext.Provider value={value}>{children}</SettingsContext.Provider>;
 }
 
