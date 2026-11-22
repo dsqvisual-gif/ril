@@ -210,7 +210,11 @@ export function TaskEditor({
             type="button"
             className={withList ? styles.extraOn : styles.extra}
             aria-pressed={withList}
-            onClick={() => setWithList((value) => !value)}
+            onClick={() => {
+              // The friend list is a picker: it folds away when you move on.
+              setPickingFriends(false);
+              setWithList((value) => !value);
+            }}
           >
             <span className={styles.extraIcon} aria-hidden>
               ☑️
@@ -225,7 +229,11 @@ export function TaskEditor({
             type="button"
             className={withNote ? styles.extraOn : styles.extra}
             aria-pressed={withNote}
-            onClick={() => setWithNote((value) => !value)}
+            onClick={() => {
+              // The friend list is a picker: it folds away when you move on.
+              setPickingFriends(false);
+              setWithNote((value) => !value);
+            }}
           >
             <span className={styles.extraIcon} aria-hidden>
               📝
