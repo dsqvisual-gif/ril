@@ -22,7 +22,7 @@ export async function loadSettings(db: SQLiteDatabase): Promise<Settings> {
   };
 }
 
-export async function saveSetting(db: SQLiteDatabase, key: keyof Settings, value: string): Promise<void> {
+export async function saveSetting(db: SQLiteDatabase, key: keyof Settings | "account_user", value: string): Promise<void> {
   await db.runAsync(
     "INSERT INTO settings (key, value) VALUES (?, ?) ON CONFLICT (key) DO UPDATE SET value = excluded.value",
     key,

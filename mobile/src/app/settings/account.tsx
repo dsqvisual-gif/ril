@@ -1,40 +1,83 @@
-import { Linking, Pressable, StyleSheet, Text, View } from "react-native";
+import { Alert, Image, Platform, Pressable, StyleSheet, Text, View } from "react-native";
+import { router } from "expo-router";
+import { useAccount } from "@/account/account-context";
+import { needsWebsite, viaWebsite } from "@/account/finish";
+import { ErrorText, GoogleButton, PrimaryButton, useStep } from "@/components/account/AuthUI";
+import { AccountAvatar } from "@/components/AccountAvatar";
 import { SettingsScreen } from "@/components/settings/SettingsUI";
 import { radius, usePalette } from "@/theme/theme";
 
-/** Placeholder until signing in to the website account comes to the app. */
 export default function AccountSettings() {
   const c = usePalette();
+  const { user, signIn, signOut } = useAccount();
+  const google = useStep();
+
+  if (user) {
+    return (
+      <SettingsScreen title="Аккаунт Uspeyka">
+        <View style={[styles.card, { backgroundColor: c.surface, borderColor: c.border }]}>
+          <View style={styles.row}>
+            <AccountAvatar name={user.name} uri={user.avatar} size={56} />
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.name, { color: c.ink }]}>{user.name}</Text>
+              {user.username ? <Text style={[styles.sub, { color: c.accent }]}>@{user.username}</Text> : null}
+              <Text style={[styles.sub, { color: c.inkSecondary }]}>{user.email}</Text>
+            </View>
+          </View>
+          <Text style={[styles.note, { color: c.inkSecondary }]}>
+            Вы вошли в тот же аккаунт, что на сайте. Синхронизация дел, друзья и команда в приложении
+            появятся в следующем обновлении.
+          </Text>
+        </View>
+        <Pressable
+          onPress={() => {
+            const go = () => void signOut();
+            if (Platform.OS === "web") go();
+            else
+              Alert.alert("Выйти из аккаунта?", "Дела на этом телефоне останутся.", [
+                { text: "Отмена", style: "cancel" },
+                { text: "Выйти", style: "destructive", onPress: go },
+              ]);
+          }}
+          style={[styles.logout, { backgroundColor: c.surface, borderColor: c.border }]}
+        >
+          <Text style={[styles.logoutText, { color: c.danger }]}>Выйти из аккаунта</Text>
+        </Pressable>
+      </SettingsScreen>
+    );
+  }
+
   return (
     <SettingsScreen
       title="Аккаунт Uspeyka"
-      lead="Вход по почте и паролю, как на сайте, появится в следующем обновлении приложения."
+      lead="Один аккаунт для сайта и приложения. Планер работает и без него — аккаунт нужен для друзей, команды и сайта."
     >
-      <View style={[styles.card, { backgroundColor: c.surface, borderColor: c.border }]}>
-        <Text style={[styles.text, { color: c.ink }]}>После входа здесь будут:</Text>
-        {["дела и цели — те же, что на сайте, на всех устройствах", "друзья, совместные дела и команда", "резервная копия ваших записей"].map((t) => (
-          <Text key={t} style={[styles.point, { color: c.inkSecondary }]}>
-            •  {t}
-          </Text>
-        ))}
-        <Text style={[styles.text, { color: c.ink, marginTop: 8 }]}>
-          А пока можно пользоваться сайтом — аккаунт там уже работает.
-        </Text>
-        <Pressable
-          onPress={() => void Linking.openURL("https://www.uspeyka.com/register")}
-          style={[styles.btn, { backgroundColor: c.accent }]}
-        >
-          <Text style={styles.btnText}>Открыть uspeyka.com</Text>
-        </Pressable>
+      <View style={styles.hero}>
+        <Image source={require("../../../assets/mascot.webp")} style={styles.mascot} resizeMode="contain" />
       </View>
+      <PrimaryButton title="Войти" onPress={() => router.push("/account/login")} />
+      <Pressable
+        onPress={() => (needsWebsite() ? void viaWebsite("register", signIn) : router.push("/account/register"))}
+        style={[styles.secondary, { borderColor: c.accent }]}
+      >
+        <Text style={[styles.secondaryText, { color: c.accent }]}>Создать аккаунт</Text>
+      </Pressable>
+      <GoogleButton busy={google.busy} onPress={() => void google.run(() => viaWebsite("google", signIn))} />
+      <ErrorText text={google.error} />
     </SettingsScreen>
   );
 }
 
 const styles = StyleSheet.create({
-  card: { borderRadius: radius.lg, borderWidth: 1, padding: 16, gap: 6 },
-  text: { fontSize: 15, fontWeight: "600", lineHeight: 21 },
-  point: { fontSize: 15, lineHeight: 21 },
-  btn: { alignSelf: "flex-start", marginTop: 10, paddingHorizontal: 18, paddingVertical: 12, borderRadius: radius.pill },
-  btnText: { color: "#fff", fontWeight: "700", fontSize: 15 },
+  card: { borderRadius: radius.lg, borderWidth: 1, padding: 16, gap: 12 },
+  row: { flexDirection: "row", alignItems: "center", gap: 14 },
+  name: { fontSize: 18, fontWeight: "800" },
+  sub: { fontSize: 14, marginTop: 2 },
+  note: { fontSize: 14, lineHeight: 20 },
+  logout: { borderRadius: radius.lg, borderWidth: 1, paddingVertical: 15, alignItems: "center" },
+  logoutText: { fontSize: 16, fontWeight: "700" },
+  hero: { alignItems: "center" },
+  mascot: { width: 120, height: 150 },
+  secondary: { paddingVertical: 14, borderRadius: radius.pill, alignItems: "center", borderWidth: 1.5 },
+  secondaryText: { fontSize: 16, fontWeight: "800" },
 });

@@ -8,6 +8,7 @@ import { SafeAreaProvider } from "react-native-safe-area-context";
 import { migrate } from "@/db/migrations";
 import { useIsDark, usePalette } from "@/theme/theme";
 import { SettingsProvider } from "@/theme/settings-context";
+import { AccountProvider } from "@/account/account-context";
 
 export default function RootLayout() {
   const c = usePalette();
@@ -24,7 +25,9 @@ export default function RootLayout() {
           {/* Everything lives on the phone: the planner works without internet. */}
           <SQLiteProvider databaseName="uspeyka.db" onInit={migrate} useSuspense>
             <SettingsProvider>
-              <ThemedStack />
+              <AccountProvider>
+                <ThemedStack />
+              </AccountProvider>
             </SettingsProvider>
           </SQLiteProvider>
         </Suspense>

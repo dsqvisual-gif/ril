@@ -14,4 +14,4 @@ scripts/_user-export.json
 next-env.d.ts
 
 # The mobile app is built by Expo, not Vercel.
-mobile
+/mobile

@@ -35,7 +35,7 @@ export default function Welcome() {
   const last = step === STEPS.length - 1;
   const s = STEPS[step];
 
-  async function finish(next: "/" | "/settings/account") {
+  async function finish(next: "/" | "/account/login") {
     const clean = name.trim().replace(/\s+/g, " ");
     if (clean.length >= 2) await update("name", clean);
     await update("onboarded", true);
@@ -107,7 +107,7 @@ export default function Welcome() {
             <Text style={styles.primaryText}>{last ? "Начать" : "Дальше"}</Text>
           </Pressable>
           {last ? (
-            <Pressable onPress={() => void finish("/settings/account")} style={styles.secondary}>
+            <Pressable onPress={() => void finish("/account/login")} style={styles.secondary}>
               <Text style={[styles.secondaryText, { color: c.accent }]}>У меня есть аккаунт на сайте</Text>
             </Pressable>
           ) : null}

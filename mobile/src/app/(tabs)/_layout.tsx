@@ -17,8 +17,10 @@ const TABS: { name: string; title: string; icon: IconName; iconOn: IconName }[] 
 export default function TabsLayout() {
   const c = usePalette();
   const { settings, loaded } = useSettings();
+  // Wait for the stored settings, so the tabs do not flash before the welcome screens.
+  if (!loaded) return null;
   // First launch: the welcome screens come first.
-  if (loaded && !settings.onboarded) return <Redirect href="/welcome" />;
+  if (!settings.onboarded) return <Redirect href="/welcome" />;
 
   return (
     <Tabs

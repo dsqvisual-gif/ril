@@ -1,17 +1,22 @@
-import { Image, Pressable, StyleSheet, Text, View } from "react-native";
+import { Image, Linking, Pressable, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { router } from "expo-router";
 import { radius, usePalette } from "@/theme/theme";
+import { useAccount } from "@/account/account-context";
+import { SITE } from "@/account/api";
 
 /** For features that work through an Uspeyka account: friends, teams. */
 export function NeedsAccount({ title, text, points }: { title: string; text: string; points: string[] }) {
   const c = usePalette();
+  const { user } = useAccount();
   return (
     <SafeAreaView style={[styles.root, { backgroundColor: c.bg }]} edges={["top"]}>
       <Text style={[styles.title, { color: c.ink }]}>{title}</Text>
       <View style={styles.center}>
         <Image source={require("../../assets/mascot.webp")} style={styles.mascot} resizeMode="contain" />
-        <Text style={[styles.text, { color: c.ink }]}>{text}</Text>
+        <Text style={[styles.text, { color: c.ink }]}>
+          {user ? `${user.name}, вы вошли в аккаунт. Этот раздел появится в приложении в следующем обновлении — а пока он работает на сайте.` : text}
+        </Text>
         <View style={styles.points}>
           {points.map((p) => (
             <Text key={p} style={[styles.point, { color: c.inkSecondary }]}>
@@ -20,10 +25,10 @@ export function NeedsAccount({ title, text, points }: { title: string; text: str
           ))}
         </View>
         <Pressable
-          onPress={() => router.push("/settings/account")}
+          onPress={() => (user ? void Linking.openURL(`${SITE}/app`) : router.push("/settings/account"))}
           style={[styles.btn, { backgroundColor: c.accent }]}
         >
-          <Text style={styles.btnText}>Войти или зарегистрироваться</Text>
+          <Text style={styles.btnText}>{user ? "Открыть на сайте" : "Войти или зарегистрироваться"}</Text>
         </Pressable>
       </View>
     </SafeAreaView>
