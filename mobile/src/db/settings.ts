@@ -1,4 +1,4 @@
-import type { SQLiteDatabase } from "expo-sqlite";
+import type { Store } from "./store-types";
 
 export type ThemePref = "system" | "light" | "dark";
 
@@ -11,9 +11,8 @@ export type Settings = {
 
 export const DEFAULT_SETTINGS: Settings = { name: "", theme: "system", onboarded: false };
 
-export async function loadSettings(db: SQLiteDatabase): Promise<Settings> {
-  const rows = await db.getAllAsync<{ key: string; value: string }>("SELECT key, value FROM settings");
-  const map = new Map(rows.map((r) => [r.key, r.value]));
+export async function loadSettings(store: Store): Promise<Settings> {
+  const map = new Map(Object.entries(await store.allSettings()));
   const theme = map.get("theme");
   return {
     name: map.get("name") ?? DEFAULT_SETTINGS.name,
@@ -22,10 +21,6 @@ export async function loadSettings(db: SQLiteDatabase): Promise<Settings> {
   };
 }
 
-export async function saveSetting(db: SQLiteDatabase, key: keyof Settings | "account_user", value: string): Promise<void> {
-  await db.runAsync(
-    "INSERT INTO settings (key, value) VALUES (?, ?) ON CONFLICT (key) DO UPDATE SET value = excluded.value",
-    key,
-    value,
-  );
+export async function saveSetting(store: Store, key: keyof Settings | "account_user", value: string): Promise<void> {
+  await store.setSetting(key, value);
 }

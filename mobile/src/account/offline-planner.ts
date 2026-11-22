@@ -1,4 +1,4 @@
-import type { SQLiteDatabase } from "expo-sqlite";
+import type { Store } from "@/db/store-types";
 import { ApiError, NetworkError, SignedOutError, type Task, type TaskInput, type ToggleResult } from "./api";
 
 /**
@@ -19,42 +19,31 @@ export function isOffline(error: unknown): boolean {
   return error instanceof NetworkError;
 }
 
-export async function readDay(db: SQLiteDatabase, date: string): Promise<Task[] | null> {
-  const row = await db.getFirstAsync<{ value: string }>("SELECT value FROM cache WHERE key = ?", dayKey(date));
-  return row ? (JSON.parse(row.value) as Task[]) : null;
+export async function readDay(db: Store, date: string): Promise<Task[] | null> {
+  const raw = await db.getCache(dayKey(date));
+  return raw ? (JSON.parse(raw) as Task[]) : null;
 }
 
-export async function writeDay(db: SQLiteDatabase, date: string, tasks: Task[]): Promise<void> {
-  await db.runAsync(
-    "INSERT INTO cache (key, value, updated_at) VALUES (?, ?, ?) ON CONFLICT (key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at",
-    dayKey(date),
-    JSON.stringify(tasks),
-    new Date().toISOString(),
-  );
+export async function writeDay(db: Store, date: string, tasks: Task[]): Promise<void> {
+  await db.setCache(dayKey(date), JSON.stringify(tasks));
 }
 
-export async function enqueue(db: SQLiteDatabase, op: Op): Promise<void> {
+export async function enqueue(db: Store, op: Op): Promise<void> {
   // A task made offline and deleted before it was ever sent simply disappears.
   if (op.kind === "delete" && op.id.startsWith("local-")) {
-    await db.runAsync("DELETE FROM outbox WHERE payload LIKE ?", `%${op.id}%`);
+    await db.outboxDeleteContaining(op.id);
     return;
   }
-  await db.runAsync(
-    "INSERT INTO outbox (kind, payload, created_at) VALUES (?, ?, ?)",
-    op.kind,
-    JSON.stringify(op),
-    new Date().toISOString(),
-  );
+  await db.outboxAdd(op.kind, JSON.stringify(op));
 }
 
-export async function pendingCount(db: SQLiteDatabase): Promise<number> {
-  const row = await db.getFirstAsync<{ n: number }>("SELECT COUNT(*) AS n FROM outbox");
-  return row?.n ?? 0;
+export async function pendingCount(db: Store): Promise<number> {
+  return db.outboxCount();
 }
 
 /** Forget everything of the account on this phone (signing out). */
-export async function clearOffline(db: SQLiteDatabase): Promise<void> {
-  await db.execAsync("DELETE FROM cache; DELETE FROM outbox;");
+export async function clearOffline(db: Store): Promise<void> {
+  await db.clearAccount();
 }
 
 /** A task created offline, shown until the website gives it a real id. */
@@ -83,17 +72,17 @@ export function localTask(input: TaskInput): Task {
  * the rest for later; a change the website refuses (e.g. the task was deleted on
  * the site) is dropped. Returns how many changes were sent.
  */
-export async function flush(db: SQLiteDatabase, call: Call): Promise<number> {
+export async function flush(db: Store, call: Call): Promise<number> {
   let sent = 0;
   for (;;) {
-    const row = await db.getFirstAsync<{ id: number; payload: string }>("SELECT id, payload FROM outbox ORDER BY id LIMIT 1");
+    const row = await db.outboxFirst();
     if (!row) return sent;
     const op = JSON.parse(row.payload) as Op;
     try {
       if (op.kind === "create") {
         const task = await call<Task>("tasks.create", op.input);
         // Later changes to this task now point at its real id.
-        await db.runAsync("UPDATE outbox SET payload = REPLACE(payload, ?, ?) WHERE id != ?", op.tempId, task.id, row.id);
+        await db.outboxReplace(op.tempId, task.id, row.id);
       } else if (op.kind === "toggle") {
         const r = await call<ToggleResult>("tasks.toggle", op.id);
         if (r.task.done !== op.done) await call<ToggleResult>("tasks.toggle", op.id);
@@ -105,7 +94,7 @@ export async function flush(db: SQLiteDatabase, call: Call): Promise<number> {
       if (!(error instanceof ApiError)) return sent;
       // Refused by the website: nothing more to do with this change.
     }
-    await db.runAsync("DELETE FROM outbox WHERE id = ?", row.id);
+    await db.outboxDelete(row.id);
     sent += 1;
   }
 }

@@ -2,10 +2,9 @@ import { Suspense, useEffect } from "react";
 import { ActivityIndicator, Pressable, Text, View } from "react-native";
 import { Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
-import { SQLiteProvider } from "expo-sqlite";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { SafeAreaProvider } from "react-native-safe-area-context";
-import { migrate } from "@/db/migrations";
+import { StoreProvider } from "@/db/store";
 import { useIsDark, usePalette } from "@/theme/theme";
 import { SettingsProvider } from "@/theme/settings-context";
 import { AccountProvider, useAccount } from "@/account/account-context";
@@ -50,13 +49,13 @@ export default function RootLayout() {
           }
         >
           {/* The phone keeps a copy of the planner, so it also works without internet. */}
-          <SQLiteProvider databaseName="uspeyka.db" onInit={migrate} useSuspense>
+          <StoreProvider>
             <SettingsProvider>
               <AccountProvider>
                 <ThemedStack />
               </AccountProvider>
             </SettingsProvider>
-          </SQLiteProvider>
+          </StoreProvider>
         </Suspense>
       </SafeAreaProvider>
     </GestureHandlerRootView>

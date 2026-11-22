@@ -34,15 +34,7 @@
       "backgroundColor": "#f1f4fa"
     },
     "plugins": [
-      [
-        "expo-router",
-        {
-          "headers": {
-            "Cross-Origin-Embedder-Policy": "credentialless",
-            "Cross-Origin-Opener-Policy": "same-origin"
-          }
-        }
-      ],
+      "expo-router",
       "expo-status-bar",
       "expo-sqlite",
       "expo-font",

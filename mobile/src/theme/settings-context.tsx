@@ -1,5 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
-import { useSQLiteContext } from "expo-sqlite";
+import { useStore } from "@/db/store-types";
 import { DEFAULT_SETTINGS, loadSettings, saveSetting, type Settings } from "@/db/settings";
 
 type Ctx = {
@@ -17,7 +17,7 @@ const SettingsContext = createContext<Ctx>({
 
 /** Settings stored on the phone, shared by all screens. */
 export function SettingsProvider({ children }: { children: React.ReactNode }) {
-  const db = useSQLiteContext();
+  const db = useStore();
   const [settings, setSettings] = useState<Settings>(DEFAULT_SETTINGS);
   const [loaded, setLoaded] = useState(false);
 

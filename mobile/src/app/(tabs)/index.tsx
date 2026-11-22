@@ -12,7 +12,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useFocusEffect } from "expo-router";
-import { useSQLiteContext } from "expo-sqlite";
+import { useStore } from "@/db/store-types";
 import { format } from "date-fns";
 import { ru } from "date-fns/locale";
 import type { Task, TaskInput, ToggleResult } from "@/account/api";
@@ -34,7 +34,7 @@ type Notice = { key: number; text: string; undo?: () => void };
 export default function PlannerScreen() {
   const c = usePalette();
   const call = useRpc();
-  const db = useSQLiteContext();
+  const db = useStore();
   const [offline, setOffline] = useState(false);
   const [waiting, setWaiting] = useState(0);
   // Which day the shown tasks belong to, so a copy is never saved under another day.
