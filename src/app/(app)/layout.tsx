@@ -6,6 +6,7 @@ import { suggestUsername } from "@/lib/username";
 import { isAdminEmail } from "@/lib/admin";
 import { ActivityPing } from "@/components/ActivityPing";
 import { InstallPrompt } from "@/components/pwa/InstallPrompt";
+import { ThemeSync } from "@/components/theme/ThemeSync";
 import { prisma } from "@/lib/prisma";
 
 export default async function AppLayout({
@@ -21,13 +22,17 @@ export default async function AppLayout({
     redirect("/login");
   }
   // A deleted account can still hold a valid session cookie.
-  const exists = await prisma.user.findUnique({ where: { id: user.id }, select: { id: true } });
+  const exists = await prisma.user.findUnique({
+    where: { id: user.id },
+    select: { id: true, theme: true },
+  });
   if (!exists) redirect("/goodbye");
   const name = user.name ?? "";
 
   return (
     <div className="app-shell">
       <ActivityPing />
+      <ThemeSync theme={exists.theme} />
       <InstallPrompt />
       <AppHeader
         name={name}

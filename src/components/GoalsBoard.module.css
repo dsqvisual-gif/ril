@@ -38,7 +38,7 @@
   width: 100%;
   min-width: 0;
   border: 1px solid var(--border);
-  background: rgba(255, 255, 255, 0.95);
+  background: var(--surface-solid);
   border-radius: var(--radius-sm);
   padding: 0.75rem 0.95rem;
   color: var(--ink);
@@ -56,7 +56,7 @@
 
 .input:focus,
 .textarea:focus {
-  border-color: rgba(0, 122, 255, 0.45);
+  border-color: color-mix(in srgb, var(--accent) 45%, transparent);
   box-shadow: 0 0 0 4px var(--accent-soft);
 }
 
@@ -254,7 +254,7 @@ button:disabled {
   height: 6px;
   margin: 0 1.1rem 1rem;
   border-radius: 6px;
-  background: #e8edf8;
+  background: var(--track);
   overflow: hidden;
 }
 
@@ -262,7 +262,7 @@ button:disabled {
   display: block;
   height: 100%;
   border-radius: inherit;
-  background: linear-gradient(90deg, #2a6bff, #34c759);
+  background: linear-gradient(90deg, var(--accent), #34c759);
   transition: width 0.4s ease;
 }
 
@@ -278,8 +278,8 @@ button:disabled {
 .why {
   padding: 0.6rem 0.85rem;
   border-radius: var(--radius-sm);
-  background: #fff8e1;
-  color: #6b4a00;
+  background: var(--tint-warn);
+  color: var(--warn-ink);
   font-size: 0.92rem;
 }
 
@@ -318,7 +318,7 @@ button:disabled {
   width: 24px;
   height: 24px;
   border-radius: 50%;
-  border: 2px solid rgba(0, 122, 255, 0.35);
+  border: 2px solid color-mix(in srgb, var(--accent) 35%, transparent);
   display: grid;
   place-items: center;
   color: #fff;
@@ -390,7 +390,7 @@ button:disabled {
   display: flex;
   flex-direction: column;
   gap: 0.45rem;
-  border-left: 2px solid #dfe6f5;
+  border-left: 2px solid var(--track);
   margin-left: 0.4rem;
   padding-left: 0.9rem;
 }
@@ -412,7 +412,7 @@ button:disabled {
   height: 10px;
   border-radius: 50%;
   background: var(--accent);
-  box-shadow: 0 0 0 3px #fff;
+  box-shadow: 0 0 0 3px var(--surface-solid);
 }
 
 .entryDate {
@@ -471,7 +471,7 @@ button:disabled {
   gap: 0.75rem;
   padding: 0.75rem 0.9rem;
   border-radius: var(--radius-sm);
-  background: rgba(255, 255, 255, 0.7);
+  background: var(--surface);
   border: 1px solid var(--border);
 }
 
@@ -534,7 +534,7 @@ button:disabled {
   gap: 0.2rem;
   padding: 0.2rem;
   border-radius: 999px;
-  background: #f1f4fa;
+  background: var(--surface-muted);
 }
 
 .kinds button {
@@ -546,7 +546,7 @@ button:disabled {
 }
 
 .kinds .kindActive {
-  background: #fff;
+  background: var(--surface-solid);
   color: var(--accent);
   box-shadow: var(--shadow-soft);
 }

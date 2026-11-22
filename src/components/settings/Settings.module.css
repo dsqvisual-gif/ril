@@ -119,3 +119,9 @@
     gap: 0.1rem;
   }
 }
+
+.cardTitle {
+  font-size: 1.1rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}

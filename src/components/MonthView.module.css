@@ -42,7 +42,7 @@
 
 .cell:hover {
   transform: translateY(-1px);
-  border-color: rgba(0, 122, 255, 0.3);
+  border-color: color-mix(in srgb, var(--accent) 30%, transparent);
 }
 
 .muted {
@@ -51,7 +51,7 @@
 
 .today {
   border-color: var(--accent);
-  background: linear-gradient(180deg, #eef5ff, #fff);
+  background: linear-gradient(180deg, var(--accent-soft), var(--surface-solid));
 }
 
 .num {

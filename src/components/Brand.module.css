@@ -15,3 +15,17 @@
     height: 32px;
   }
 }
+
+.onDark {
+  display: none;
+}
+
+:global([data-theme="dark"]) .onLight,
+:global([data-theme="midnight"]) .onLight {
+  display: none;
+}
+
+:global([data-theme="dark"]) .onDark,
+:global([data-theme="midnight"]) .onDark {
+  display: block;
+}

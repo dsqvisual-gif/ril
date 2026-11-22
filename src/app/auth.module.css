@@ -6,7 +6,7 @@
   flex-direction: column;
   background:
     radial-gradient(800px 480px at 30% 45%, #e3ebff 0%, transparent 60%),
-    linear-gradient(180deg, #f6f8ff 0%, #eef2fc 100%);
+    linear-gradient(180deg, #f6f8ff 0%, var(--track) 100%);
 }
 
 .header {

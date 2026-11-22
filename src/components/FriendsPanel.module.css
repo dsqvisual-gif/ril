@@ -113,12 +113,12 @@
 
 .rename {
   width: min(220px, 58vw);
-  border: 1px solid rgba(0, 122, 255, 0.45);
+  border: 1px solid color-mix(in srgb, var(--accent) 45%, transparent);
   border-radius: 8px;
   padding: 0.28rem 0.5rem;
   font-weight: 680;
   color: var(--ink);
-  background: #fff;
+  background: var(--surface-solid);
   outline: none;
   box-shadow: 0 0 0 4px var(--accent-soft);
 }

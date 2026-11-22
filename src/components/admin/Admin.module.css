@@ -68,6 +68,8 @@
 .search {
   flex: 1;
   min-width: 0;
+  background: var(--surface-solid);
+  color: var(--ink);
   padding: 0.6rem 0.85rem;
   border-radius: var(--radius-sm);
   border: 1px solid var(--border);
@@ -76,7 +78,7 @@
 }
 
 .search:focus {
-  border-color: rgba(0, 122, 255, 0.45);
+  border-color: color-mix(in srgb, var(--accent) 45%, transparent);
   box-shadow: 0 0 0 4px var(--accent-soft);
 }
 
@@ -106,7 +108,7 @@
   letter-spacing: 0.04em;
   text-transform: uppercase;
   color: var(--ink-tertiary);
-  background: #f7f9fe;
+  background: var(--surface-muted);
 }
 
 .table td {
@@ -147,7 +149,7 @@
   border-radius: 999px;
   font-size: 0.75rem;
   font-weight: 700;
-  background: rgba(0, 0, 0, 0.05);
+  background: var(--fill);
 }
 
 .tagGoogle {
@@ -161,10 +163,11 @@
 }
 
 .sort {
+  color: var(--ink);
   padding: 0.55rem 0.75rem;
   border-radius: var(--radius-sm);
   border: 1px solid var(--border);
-  background: #fff;
+  background: var(--surface-solid);
   font: inherit;
   font-size: 0.88rem;
 }
@@ -205,18 +208,18 @@
 }
 
 .seenFresh {
-  background: rgba(0, 122, 255, 0.1);
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
   color: var(--accent);
 }
 
 .seenOk {
-  background: rgba(0, 0, 0, 0.05);
+  background: var(--fill);
   color: var(--ink-secondary);
 }
 
 .seenIdle {
-  background: #fff1d6;
-  color: #9a5b00;
+  background: var(--tint-warn);
+  color: var(--warn-ink);
 }
 
 .seenGone {

@@ -24,6 +24,8 @@ model User {
   lastSeenAt    DateTime?
   activeMinutes Int                @default(0)
   activeDays    Int                @default(0)
+  /// Colour theme id from src/lib/themes.ts.
+  theme         String?
   createdAt    DateTime            @default(now())
   tasks        Task[]
   achievements AchievementUnlock[]

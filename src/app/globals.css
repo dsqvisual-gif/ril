@@ -1,21 +1,111 @@
 :root {
   --bg-top: #f5f7fb;
   --bg-bottom: #e8eef8;
+  --glow-1: #dbe7ff;
+  --glow-2: #e8f4ff;
   --surface: rgba(255, 255, 255, 0.72);
   --surface-solid: #ffffff;
+  --surface-muted: #f6f8fc;
+  --surface-faint: rgba(255, 255, 255, 0.45);
+  --track: #e9edf6;
+  --fill: rgba(0, 0, 0, 0.05);
   --ink: #1d1d1f;
   --ink-secondary: #6e6e73;
   --ink-tertiary: #86868b;
   --accent: #007aff;
-  --accent-soft: rgba(0, 122, 255, 0.12);
+  --accent-soft: color-mix(in srgb, var(--accent) 12%, transparent);
+  --on-accent: #ffffff;
   --success: #34c759;
   --danger: #ff3b30;
+  --tint-warn: #fff6e5;
+  --tint-danger: #ffe7e4;
+  --warn-ink: #8a5a12;
   --border: rgba(0, 0, 0, 0.06);
   --shadow: 0 8px 32px rgba(15, 23, 42, 0.08);
   --shadow-soft: 0 2px 12px rgba(15, 23, 42, 0.06);
   --radius: 16px;
   --radius-sm: 12px;
   --font: var(--font-jakarta), "Segoe UI", sans-serif;
+}
+
+/* ---------- colour themes (chosen in the profile) ---------- */
+
+[data-theme="pink"] {
+  --bg-top: #fff5f9;
+  --bg-bottom: #ffe3ee;
+  --glow-1: #ffd6e7;
+  --glow-2: #ffe8f1;
+  --accent: #e64980;
+  --tint-warn: #fff3e8;
+}
+
+[data-theme="lavender"] {
+  --bg-top: #f7f5ff;
+  --bg-bottom: #e9e3ff;
+  --glow-1: #e0d8ff;
+  --glow-2: #efeaff;
+  --accent: #7950f2;
+}
+
+[data-theme="mint"] {
+  --bg-top: #f2fcf8;
+  --bg-bottom: #dcf5ea;
+  --glow-1: #c9f2df;
+  --glow-2: #e3f9ef;
+  --accent: #0ca678;
+}
+
+[data-theme="peach"] {
+  --bg-top: #fff8f1;
+  --bg-bottom: #ffe8d6;
+  --glow-1: #ffdcc2;
+  --glow-2: #ffeedd;
+  --accent: #f76707;
+}
+
+[data-theme="ocean"] {
+  --bg-top: #f0f8ff;
+  --bg-bottom: #d6ecff;
+  --glow-1: #c5e3ff;
+  --glow-2: #dff0ff;
+  --accent: #1971c2;
+}
+
+[data-theme="dark"],
+[data-theme="midnight"] {
+  --surface: rgba(30, 33, 40, 0.78);
+  --surface-solid: #1b1e24;
+  --surface-muted: #23272f;
+  --surface-faint: rgba(255, 255, 255, 0.04);
+  --track: #2c313b;
+  --fill: rgba(255, 255, 255, 0.07);
+  --ink: #f2f3f5;
+  --ink-secondary: #a8adb8;
+  --ink-tertiary: #7d8390;
+  --accent: #4c9dff;
+  --tint-warn: #3a2f17;
+  --tint-danger: #3d1f1d;
+  --warn-ink: #ffc96b;
+  --border: rgba(255, 255, 255, 0.08);
+  --shadow: 0 8px 32px rgba(0, 0, 0, 0.45);
+  --shadow-soft: 0 2px 12px rgba(0, 0, 0, 0.35);
+  --bg-top: #0f1115;
+  --bg-bottom: #14171c;
+  --glow-1: #1a2233;
+  --glow-2: #161c27;
+}
+
+[data-theme="midnight"] {
+  --surface: rgba(22, 34, 74, 0.78);
+  --surface-solid: #14204a;
+  --surface-muted: #1a2959;
+  --track: #24336a;
+  --accent: #74c0fc;
+  --on-accent: #0b1530;
+  --bg-top: #0b1530;
+  --bg-bottom: #0e1b3d;
+  --glow-1: #1b2c66;
+  --glow-2: #13204a;
 }
 
 * {
@@ -27,6 +117,11 @@
 html {
   height: 100%;
   color-scheme: light;
+}
+
+[data-theme="dark"],
+[data-theme="midnight"] {
+  color-scheme: dark;
 }
 
 html,
@@ -42,8 +137,8 @@ body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   background:
-    radial-gradient(1200px 600px at 10% -10%, #dbe7ff 0%, transparent 55%),
-    radial-gradient(900px 500px at 100% 0%, #e8f4ff 0%, transparent 50%),
+    radial-gradient(1200px 600px at 10% -10%, var(--glow-1) 0%, transparent 55%),
+    radial-gradient(900px 500px at 100% 0%, var(--glow-2) 0%, transparent 50%),
     linear-gradient(180deg, var(--bg-top), var(--bg-bottom));
   background-attachment: fixed;
 }
@@ -105,22 +200,22 @@ button {
 
 .btn-primary {
   background: var(--accent);
-  color: #fff;
-  box-shadow: 0 8px 20px rgba(0, 122, 255, 0.28);
+  color: var(--on-accent);
+  box-shadow: 0 8px 20px color-mix(in srgb, var(--accent) 28%, transparent);
 }
 
 .btn-primary:hover {
-  background: #0066d6;
+  filter: brightness(0.92);
 }
 
 .btn-ghost {
-  background: rgba(255, 255, 255, 0.55);
+  background: var(--surface);
   color: var(--ink);
   border: 1px solid var(--border);
 }
 
 .btn-ghost:hover {
-  background: rgba(255, 255, 255, 0.9);
+  background: var(--surface-solid);
 }
 
 .field {
@@ -137,7 +232,7 @@ button {
 
 .field input {
   border: 1px solid var(--border);
-  background: rgba(255, 255, 255, 0.9);
+  background: var(--surface-solid);
   border-radius: var(--radius-sm);
   padding: 0.85rem 1rem;
   color: var(--ink);
@@ -146,7 +241,7 @@ button {
 }
 
 .field input:focus {
-  border-color: rgba(0, 122, 255, 0.45);
+  border-color: color-mix(in srgb, var(--accent) 45%, transparent);
   box-shadow: 0 0 0 4px var(--accent-soft);
 }
 

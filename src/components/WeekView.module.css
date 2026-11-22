@@ -25,12 +25,12 @@
 
 .col:hover {
   transform: translateY(-2px);
-  border-color: rgba(0, 122, 255, 0.28);
+  border-color: color-mix(in srgb, var(--accent) 28%, transparent);
 }
 
 .today {
-  border-color: rgba(0, 122, 255, 0.45);
-  background: linear-gradient(180deg, #f3f8ff, #fff);
+  border-color: color-mix(in srgb, var(--accent) 45%, transparent);
+  background: linear-gradient(180deg, var(--accent-soft), var(--surface-solid));
 }
 
 .dayLabel {

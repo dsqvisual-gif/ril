@@ -17,7 +17,17 @@ export function Brand({ href, className }: Props) {
         height={646}
         priority
         unoptimized
-        className={styles.logo}
+        className={`${styles.logo} ${styles.onLight}`}
+      />
+      {/* Light lettering for the dark themes. */}
+      <Image
+        src="/logo-dark.svg"
+        alt=""
+        aria-hidden
+        width={2856}
+        height={646}
+        unoptimized
+        className={`${styles.logo} ${styles.onDark}`}
       />
     </Link>
   );

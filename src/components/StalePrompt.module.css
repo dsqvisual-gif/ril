@@ -8,13 +8,13 @@
 .card {
   padding: 1rem 1.05rem;
   border-radius: 16px;
-  background: #fff8ee;
+  background: var(--tint-warn);
   border: 1px solid #f0d7a8;
   box-shadow: var(--shadow-soft);
 }
 
 .kicker {
-  color: #8a5a12;
+  color: var(--warn-ink);
   font-size: 0.82rem;
   font-weight: 700;
 }

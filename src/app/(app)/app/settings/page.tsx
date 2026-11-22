@@ -5,6 +5,8 @@ import { ru } from "date-fns/locale";
 import { prisma } from "@/lib/prisma";
 import { requireUserId } from "@/lib/session";
 import { DeleteAccount } from "@/components/settings/DeleteAccount";
+import { ThemePicker } from "@/components/theme/ThemePicker";
+import { DEFAULT_THEME, isThemeId } from "@/lib/themes";
 import styles from "@/components/settings/Settings.module.css";
 
 export const metadata: Metadata = {
@@ -22,6 +24,7 @@ export default async function SettingsPage() {
       emailVerified: true,
       passwordHash: true,
       createdAt: true,
+      theme: true,
     },
   });
   if (!user) notFound();
@@ -60,6 +63,11 @@ export default async function SettingsPage() {
           Забыли пароль или хотите его сменить — воспользуйтесь{" "}
           <a href="/forgot">восстановлением по коду</a>.
         </p>
+      </div>
+
+      <div className={styles.card}>
+        <h2 className={styles.cardTitle}>Оформление</h2>
+        <ThemePicker initial={isThemeId(user.theme) ? user.theme : DEFAULT_THEME} />
       </div>
 
       <DeleteAccount confirmWord={user.username ? `@${user.username}` : user.email} />
