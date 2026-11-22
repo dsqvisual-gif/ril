@@ -5,6 +5,7 @@ import { useFormStatus } from "react-dom";
 import Link from "next/link";
 import { appleSignInAction, googleSignInAction } from "@/lib/actions/google";
 import { confirmRegistration } from "@/lib/actions/email-auth";
+import { BotGuard } from "./BotGuard";
 import { CodeStep } from "./CodeStep";
 import { PasswordInput } from "./PasswordInput";
 import styles from "./AuthForm.module.css";
@@ -111,6 +112,8 @@ export function AuthForm({ mode, action, notice, apple = false }: Props) {
             autoComplete={mode === "login" ? "current-password" : "new-password"}
           />
         </div>
+
+        {mode === "register" ? <BotGuard resetKey={state} /> : null}
 
         {mode === "register" ? (
           <label className={styles.consent}>

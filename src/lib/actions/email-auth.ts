@@ -14,6 +14,7 @@ import {
   normalizeEmail,
 } from "@/lib/email-codes";
 import { clientIp, rateLimit } from "@/lib/rate-limit";
+import { botCheck, isDisposableEmail } from "@/lib/bot-check";
 import { normalizeUsername, usernameError } from "@/lib/username";
 import { usernameTakenError } from "@/lib/username-check";
 
@@ -74,9 +75,15 @@ export async function startRegistration(
     return { error: `Пароль должен быть не короче ${PASSWORD_MIN} символов` };
   }
 
+  if (isDisposableEmail(email)) {
+    return { error: "Временные почтовые ящики не подходят — укажите свою постоянную почту" };
+  }
   if (formData.get("consent") !== "on") {
     return { error: "Чтобы зарегистрироваться, примите правила и согласие на обработку данных" };
   }
+
+  const bot = await botCheck(formData, await headers(), "register");
+  if (bot) return { error: bot };
 
   if (await prisma.user.findUnique({ where: { email }, select: { id: true } })) {
     return { error: "Пользователь с таким email уже есть. Войдите или восстановите пароль." };
@@ -119,6 +126,8 @@ export async function requestLoginCode(
 ): Promise<CodeFlowState> {
   const email = normalizeEmail(String(formData.get("email") ?? ""));
   if (!isEmail(email)) return { error: "Укажите корректный email" };
+  const bot = await botCheck(formData, await headers(), "code");
+  if (bot) return { error: bot };
   if (!(await allowSend(email))) return { error: "Слишком много писем. Попробуйте через час." };
 
   const user = await prisma.user.findUnique({ where: { email }, select: { id: true } });
@@ -153,6 +162,8 @@ export async function requestResetCode(
 ): Promise<CodeFlowState> {
   const email = normalizeEmail(String(formData.get("email") ?? ""));
   if (!isEmail(email)) return { error: "Укажите корректный email" };
+  const bot = await botCheck(formData, await headers(), "code");
+  if (bot) return { error: bot };
   if (!(await allowSend(email))) return { error: "Слишком много писем. Попробуйте через час." };
 
   const user = await prisma.user.findUnique({ where: { email }, select: { id: true } });

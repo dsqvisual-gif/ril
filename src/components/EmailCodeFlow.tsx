@@ -4,6 +4,7 @@ import { useActionState, useState } from "react";
 import Link from "next/link";
 import type { CodeFlowState } from "@/lib/actions/email-auth";
 import type { CodePurpose } from "@/lib/email";
+import { BotGuard } from "./BotGuard";
 import { CodeStep } from "./CodeStep";
 import styles from "./AuthForm.module.css";
 
@@ -66,6 +67,7 @@ export function EmailCodeFlow({
             onChange={(e) => setTyped(e.target.value)}
           />
         </div>
+        <BotGuard resetKey={state} />
         {state.error ? <p className="form-error">{state.error}</p> : null}
         <button type="submit" className={`btn btn-primary ${styles.submit}`} disabled={pending}>
           {pending ? "Отправляю…" : "Прислать код"}
