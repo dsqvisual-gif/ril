@@ -1,4 +1,5 @@
 import { useColorScheme } from "react-native";
+import { useSettings } from "./settings-context";
 
 /** The website's colours, as plain values for React Native. */
 export type Palette = {
@@ -66,6 +67,14 @@ const dark: Palette = {
 
 export const radius = { lg: 18, md: 14, sm: 10, pill: 999 };
 
+/** Colours for the chosen theme: the phone's own setting unless the person picked one. */
 export function usePalette(): Palette {
-  return useColorScheme() === "dark" ? dark : light;
+  const system = useColorScheme();
+  const { settings } = useSettings();
+  const mode = settings.theme === "system" ? system : settings.theme;
+  return mode === "dark" ? dark : light;
+}
+
+export function useIsDark(): boolean {
+  return usePalette() === dark;
 }

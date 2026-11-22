@@ -6,7 +6,8 @@ import { SQLiteProvider } from "expo-sqlite";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { migrate } from "@/db/migrations";
-import { usePalette } from "@/theme/theme";
+import { useIsDark, usePalette } from "@/theme/theme";
+import { SettingsProvider } from "@/theme/settings-context";
 
 export default function RootLayout() {
   const c = usePalette();
@@ -22,11 +23,24 @@ export default function RootLayout() {
         >
           {/* Everything lives on the phone: the planner works without internet. */}
           <SQLiteProvider databaseName="uspeyka.db" onInit={migrate} useSuspense>
-            <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: c.bg } }} />
+            <SettingsProvider>
+              <ThemedStack />
+            </SettingsProvider>
           </SQLiteProvider>
         </Suspense>
-        <StatusBar style="auto" />
       </SafeAreaProvider>
     </GestureHandlerRootView>
+  );
+}
+
+/** Screens and the status bar, in the theme chosen in settings. */
+function ThemedStack() {
+  const c = usePalette();
+  const dark = useIsDark();
+  return (
+    <>
+      <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: c.bg } }} />
+      <StatusBar style={dark ? "light" : "dark"} />
+    </>
   );
 }
