@@ -47,7 +47,12 @@ export async function signMobileToken(userId: string): Promise<string> {
 
 /** The signed-in user of a request from the app, or null. */
 export async function mobileUserId(request: Request): Promise<string | null> {
-  const header = request.headers.get("authorization") ?? "";
+  return mobileUserIdFromHeaders(request.headers);
+}
+
+/** Same, from the request headers (used where only next/headers is available). */
+export async function mobileUserIdFromHeaders(headers: Headers): Promise<string | null> {
+  const header = headers.get("authorization") ?? "";
   const token = header.replace(/^Bearer\s+/i, "").trim();
   if (!token) return null;
   try {
