@@ -1,5 +1,6 @@
 import { Tabs } from "expo-router";
 import Ionicons from "@expo/vector-icons/Ionicons";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { usePalette } from "@/theme/theme";
 
 type IconName = keyof typeof Ionicons.glyphMap;
@@ -13,14 +14,22 @@ const TABS: { name: string; title: string; icon: IconName; iconOn: IconName }[] 
 
 export default function TabsLayout() {
   const c = usePalette();
+  // Room for the labels above the home indicator; the default bar clipped them.
+  const bottom = Math.max(useSafeAreaInsets().bottom, 8);
   return (
     <Tabs
       screenOptions={{
         headerShown: false,
         tabBarActiveTintColor: c.accent,
         tabBarInactiveTintColor: c.inkTertiary,
-        tabBarStyle: { backgroundColor: c.surface, borderTopColor: c.border },
-        tabBarLabelStyle: { fontSize: 11, fontWeight: "600" },
+        tabBarStyle: {
+          backgroundColor: c.surface,
+          borderTopColor: c.border,
+          height: 62 + bottom,
+          paddingTop: 4,
+          paddingBottom: bottom,
+        },
+        tabBarLabelStyle: { fontSize: 11, lineHeight: 16, paddingBottom: 2, fontWeight: "600" },
         sceneStyle: { backgroundColor: c.bg },
       }}
     >
