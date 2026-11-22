@@ -1,7 +1,9 @@
 import { useState } from "react";
 import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
-import { TITLE_MAX, type TaskInput } from "@/db/tasks";
+import type { TaskInput } from "@/account/api";
 import { radius, usePalette } from "@/theme/theme";
+
+const TITLE_MAX = 140;
 
 type Props = {
   date: string;

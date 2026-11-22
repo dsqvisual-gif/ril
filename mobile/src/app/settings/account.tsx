@@ -25,8 +25,7 @@ export default function AccountSettings() {
             </View>
           </View>
           <Text style={[styles.note, { color: c.inkSecondary }]}>
-            Вы вошли в тот же аккаунт, что на сайте. Синхронизация дел, друзья и команда в приложении
-            появятся в следующем обновлении.
+            Это тот же аккаунт, что на сайте: дела, цели, друзья и команда одинаковые и там, и тут.
           </Text>
         </View>
         <Pressable
@@ -34,7 +33,7 @@ export default function AccountSettings() {
             const go = () => void signOut();
             if (Platform.OS === "web") go();
             else
-              Alert.alert("Выйти из аккаунта?", "Дела на этом телефоне останутся.", [
+              Alert.alert("Выйти из аккаунта?", "Чтобы снова видеть дела, нужно будет войти.", [
                 { text: "Отмена", style: "cancel" },
                 { text: "Выйти", style: "destructive", onPress: go },
               ]);

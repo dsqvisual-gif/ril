@@ -14,7 +14,7 @@ export default function SettingsHub() {
   const c = usePalette();
   const { settings } = useSettings();
   const { user } = useAccount();
-  const name = user?.name ?? settings.name.trim();
+  const name = user?.name ?? "";
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: c.bg }} edges={["top"]}>
@@ -22,7 +22,7 @@ export default function SettingsHub() {
         <Text style={[styles.title, { color: c.ink }]}>Настройки</Text>
 
         <Pressable
-          onPress={() => router.push(user ? "/settings/account" : "/settings/profile")}
+          onPress={() => router.push("/settings/account")}
           style={({ pressed }) => [
             styles.profile,
             { backgroundColor: pressed ? c.fill : c.surface, borderColor: c.border },
@@ -31,10 +31,10 @@ export default function SettingsHub() {
           <AccountAvatar name={name} uri={user?.avatar} size={52} />
           <View style={{ flex: 1 }}>
             <Text style={[styles.name, { color: c.ink }]} numberOfLines={1}>
-              {name || "Как вас зовут?"}
+              {name}
             </Text>
             <Text style={[styles.sub, { color: c.inkSecondary }]} numberOfLines={1}>
-              {user ? (user.username ? `@${user.username}` : user.email) : "Данные хранятся на этом телефоне"}
+              {user?.username ? `@${user.username}` : user?.email}
             </Text>
           </View>
           <Text style={[styles.edit, { color: c.accent }]}>Профиль ›</Text>
@@ -52,7 +52,13 @@ export default function SettingsHub() {
         </SettingsGroup>
 
         <SettingsGroup title="Успехи">
-          <SettingsRow icon="🏆" tone="#fff1d6" title="Достижения и мои цифры" value="Скоро" last />
+          <SettingsRow
+            icon="🏆"
+            tone="#fff1d6"
+            title="Достижения и мои цифры"
+            onPress={() => router.push("/settings/achievements")}
+            last
+          />
         </SettingsGroup>
 
         <SettingsGroup title="Уведомления">
@@ -65,7 +71,7 @@ export default function SettingsHub() {
             icon="☁️"
             tone="#eceef3"
             title="Аккаунт Uspeyka"
-            value={user ? "Вход выполнен" : "Не выполнен вход"}
+            value={user?.email}
             onPress={() => router.push("/settings/account")}
           />
           <SettingsRow

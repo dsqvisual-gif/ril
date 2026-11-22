@@ -21,7 +21,7 @@ export function AuthFrame({ title, lead, children }: { title: string; lead?: str
     <SafeAreaView style={{ flex: 1, backgroundColor: c.bg }} edges={["top", "bottom"]}>
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
         <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
-          <Pressable onPress={() => (router.canGoBack() ? router.back() : router.replace("/profile"))} hitSlop={8}>
+          <Pressable onPress={() => (router.canGoBack() ? router.back() : router.replace("/welcome"))} hitSlop={8}>
             <Text style={[styles.back, { color: c.accent }]}>‹ Назад</Text>
           </Pressable>
           <Image source={require("../../../assets/mascot-peek.webp")} style={styles.mascot} resizeMode="contain" />

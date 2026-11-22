@@ -3,10 +3,10 @@ import { router } from "expo-router";
 import { signInOnWebsite, type WebFlow } from "./web-sign-in";
 import type { Session } from "./api";
 
-/** After any successful sign-in: back to the profile, with the sign-in screens closed. */
+/** After any successful sign-in: straight to the planner, with the sign-in screens closed. */
 export function goHomeAfterSignIn() {
   if (router.canDismiss()) router.dismissAll();
-  router.replace("/profile");
+  router.replace("/");
 }
 
 /**

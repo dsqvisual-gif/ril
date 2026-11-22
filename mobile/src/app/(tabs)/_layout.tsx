@@ -1,7 +1,7 @@
 import { Redirect, Tabs } from "expo-router";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { TabBar } from "@/components/TabBar";
-import { useSettings } from "@/theme/settings-context";
+import { useAccount } from "@/account/account-context";
 import { usePalette } from "@/theme/theme";
 
 type IconName = keyof typeof Ionicons.glyphMap;
@@ -16,11 +16,11 @@ const TABS: { name: string; title: string; icon: IconName; iconOn: IconName }[] 
 
 export default function TabsLayout() {
   const c = usePalette();
-  const { settings, loaded } = useSettings();
-  // Wait for the stored settings, so the tabs do not flash before the welcome screens.
-  if (!loaded) return null;
-  // First launch: the welcome screens come first.
-  if (!settings.onboarded) return <Redirect href="/welcome" />;
+  const { user, ready } = useAccount();
+  // Wait for the saved sign-in, so the tabs do not flash before the welcome screens.
+  if (!ready) return null;
+  // Everything comes from the Uspeyka account, so signing in comes first.
+  if (!user) return <Redirect href="/welcome" />;
 
   return (
     <Tabs

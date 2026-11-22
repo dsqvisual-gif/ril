@@ -1,6 +1,6 @@
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import * as Haptics from "expo-haptics";
-import type { Task } from "@/db/tasks";
+import type { Task } from "@/account/api";
 import { radius, usePalette } from "@/theme/theme";
 
 type Props = {
@@ -12,6 +12,8 @@ type Props = {
 export function TaskRow({ task, onToggle, onDelete }: Props) {
   const c = usePalette();
   const carried = !task.done && task.originDate < task.date;
+  const withWhom = task.partners.map((p) => p.name).join(", ");
+  const listDone = task.items.filter((i) => i.done).length;
   const tint = task.done ? null : task.urgent ? c.tintDanger : task.important ? c.tintWarn : null;
   const edge = task.done ? c.border : task.urgent ? "#ff3b30" : task.important ? "#f0b429" : c.border;
 
@@ -51,7 +53,7 @@ export function TaskRow({ task, onToggle, onDelete }: Props) {
         >
           {task.title}
         </Text>
-        {task.urgent || task.important || task.time || carried ? (
+        {task.urgent || task.important || task.time || carried || withWhom || task.items.length > 0 ? (
           <View style={styles.meta}>
             {task.urgent ? (
               <Text style={[styles.flag, { backgroundColor: "#ff3b30", color: "#fff" }]}>СРОЧНО</Text>
@@ -60,7 +62,16 @@ export function TaskRow({ task, onToggle, onDelete }: Props) {
               <Text style={[styles.flag, { backgroundColor: "#ffe08a", color: "#7a4b00" }]}>ВАЖНО</Text>
             ) : null}
             {task.time ? <Text style={[styles.time, { color: c.accent }]}>{task.time}</Text> : null}
+            {task.items.length > 0 ? (
+              <Text style={[styles.carried, { color: listDone === task.items.length ? c.success : c.inkSecondary }]}>
+                ☑ {listDone}/{task.items.length}
+              </Text>
+            ) : null}
             {carried ? <Text style={[styles.carried, { color: c.inkSecondary }]}>перенесено</Text> : null}
+            {task.ownerName && !task.viewerIsOwner ? (
+              <Text style={[styles.carried, { color: c.inkSecondary }]}>от {task.ownerName}</Text>
+            ) : null}
+            {withWhom ? <Text style={[styles.carried, { color: c.inkSecondary }]}>с {withWhom}</Text> : null}
           </View>
         ) : null}
       </View>

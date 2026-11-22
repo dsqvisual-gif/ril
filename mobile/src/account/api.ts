@@ -59,3 +59,89 @@ export async function fetchMe(token: string): Promise<AccountUser | null> {
     throw error;
   }
 }
+
+/** Thrown when the website no longer accepts the sign-in: the app signs out. */
+export class SignedOutError extends ApiError {}
+
+type ActionResult<T> = { ok: true; data: T } | { ok: false; error: string };
+
+function isActionResult(value: unknown): value is ActionResult<unknown> {
+  return Boolean(value) && typeof value === "object" && "ok" in (value as object);
+}
+
+/**
+ * Calls one of the website's own actions (see /api/mobile/rpc on the site).
+ * Results in the website's { ok, data | error } shape are unwrapped.
+ */
+export async function rpc<T>(token: string, fn: string, ...args: unknown[]): Promise<T> {
+  let res: Response;
+  try {
+    res = await fetch(`${SITE}/api/mobile/rpc`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ fn, args }),
+    });
+  } catch {
+    throw new ApiError("Нет связи с сервером. Проверьте интернет.");
+  }
+  const data = (await res.json().catch(() => ({}))) as { result?: unknown; error?: string };
+  if (res.status === 401) throw new SignedOutError("Войдите в аккаунт ещё раз");
+  if (!res.ok || data.error) throw new ApiError(data.error || "Что-то пошло не так");
+  const result = data.result;
+  if (isActionResult(result)) {
+    if (!result.ok) throw new ApiError(result.error);
+    return result.data as T;
+  }
+  return result as T;
+}
+
+// ---- data shapes, as the website returns them ----
+
+export type Person = { id: string; name: string; username: string };
+
+export type TaskItem = { id: string; text: string; done: boolean };
+
+export type Task = {
+  id: string;
+  title: string;
+  date: string;
+  originDate: string;
+  keptOn: string | null;
+  time: string | null;
+  important: boolean;
+  urgent: boolean;
+  done: boolean;
+  shared: boolean;
+  viewerIsOwner: boolean;
+  ownerName: string | null;
+  partners: Person[];
+  note: string | null;
+  items: TaskItem[];
+};
+
+export type TaskInput = {
+  title: string;
+  date: string;
+  time?: string | null;
+  important?: boolean;
+  urgent?: boolean;
+  friendIds?: string[];
+  note?: string | null;
+  items?: { text: string; done?: boolean }[];
+};
+
+export type ToggleResult = { task: Task; newlyUnlocked: string[] };
+
+export type FriendOption = { id: string; name: string; username: string; alias: string | null; avatar: string | null };
+
+export type AccountRow = {
+  id: string;
+  name: string;
+  username: string;
+  alias: string | null;
+  avatar: string | null;
+  relation: "none" | "friend" | "incoming" | "outgoing";
+  friendshipId: string | null;
+};
+
+export type FriendsBoard = { me: { id: string; name: string; username: string }; accounts: AccountRow[] };
