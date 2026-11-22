@@ -12,6 +12,9 @@ import { listReminders } from "@/lib/actions/reminders";
 import { DigestSettings, RemindersSettings } from "@/components/settings/RemindersSettings";
 import { MomModeSwitch } from "@/components/settings/MomModeSwitch";
 import { AvatarSettings } from "@/components/settings/AvatarSettings";
+import { FriendQr } from "@/components/settings/FriendQr";
+import { friendLink } from "@/lib/friend-link";
+import QRCode from "qrcode";
 import { avatarSrc } from "@/lib/avatar";
 import styles from "@/components/settings/Settings.module.css";
 
@@ -41,6 +44,15 @@ export default async function SettingsPage() {
   });
   if (!user) notFound();
   const reminders = await listReminders();
+  const link = user.username ? friendLink(user.username) : null;
+  const qrSvg = link
+    ? await QRCode.toString(link, {
+        type: "svg",
+        errorCorrectionLevel: "M",
+        margin: 0,
+        color: { dark: "#182244", light: "#ffffff" },
+      })
+    : null;
 
   return (
     <section className={styles.root}>
@@ -83,6 +95,13 @@ export default async function SettingsPage() {
           <a href="/forgot">восстановлением по коду</a>.
         </p>
       </div>
+
+      {link && qrSvg && user.username ? (
+        <div className={styles.card} id="qr">
+          <h2 className={styles.cardTitle}>Мой QR для друзей</h2>
+          <FriendQr svg={qrSvg} link={link} username={user.username} />
+        </div>
+      ) : null}
 
       <MomModeSwitch initial={user.momMode} />
 

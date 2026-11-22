@@ -292,3 +292,17 @@ export async function renameFriend(
   refreshFriends();
   return { alias: stored };
 }
+
+/** Forgets a friend link opened before signing in, whether it was used or dismissed. */
+export async function clearPendingFriend(): Promise<void> {
+  const { cookies } = await import("next/headers");
+  const { PENDING_FRIEND_COOKIE } = await import("@/lib/friend-link");
+  (await cookies()).delete(PENDING_FRIEND_COOKIE);
+}
+
+/** Sends a friend request from a QR link and forgets the link. */
+export async function addFriendFromLink(targetId: string): Promise<FriendActionState> {
+  const result = await requestFriend(targetId);
+  await clearPendingFriend();
+  return result;
+}

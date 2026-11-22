@@ -12,6 +12,9 @@ import { Onboarding } from "@/components/onboarding/Onboarding";
 import { ChildInvites } from "@/components/baby/ChildInvites";
 import { listChildInvites } from "@/lib/actions/baby-care";
 import { prisma } from "@/lib/prisma";
+import { cookies } from "next/headers";
+import { PENDING_FRIEND_COOKIE } from "@/lib/friend-link";
+import { FriendLinkPrompt, type FriendLinkTarget } from "@/components/friends/FriendLinkPrompt";
 
 export default async function AppLayout({
   children,
@@ -33,6 +36,8 @@ export default async function AppLayout({
   if (!exists) redirect("/goodbye");
   const name = user.name ?? "";
   const childInvites = await listChildInvites();
+  const friendLink =
+    user.username && exists.onboardedAt ? await pendingFriendLink(user.id) : null;
 
   return (
     <div className={exists.momMode ? "app-shell mom-mode" : "app-shell"}>
@@ -48,6 +53,7 @@ export default async function AppLayout({
       />
       {user.username && !exists.onboardedAt ? <Onboarding /> : null}
       {childInvites.length > 0 ? <ChildInvites invites={childInvites} /> : null}
+      {friendLink ? <FriendLinkPrompt key={friendLink.id} target={friendLink} /> : null}
       {user.username ? (
         children
       ) : (
@@ -55,4 +61,31 @@ export default async function AppLayout({
       )}
     </div>
   );
+}
+
+/** Whose friend QR or link was opened before this visit, and how they relate to the viewer. */
+async function pendingFriendLink(userId: string): Promise<FriendLinkTarget | null> {
+  const raw = (await cookies()).get(PENDING_FRIEND_COOKIE)?.value;
+  if (!raw) return null;
+  const username = decodeURIComponent(raw).toLowerCase();
+  if (!/^[a-z0-9_]{3,20}$/.test(username)) return null;
+  const person = await prisma.user.findUnique({
+    where: { username },
+    select: { id: true, name: true, username: true, image: true, avatarVersion: true },
+  });
+  if (!person?.username) return null;
+  const base = { id: person.id, name: person.name, username: person.username, avatar: avatarSrc(person) };
+  if (person.id === userId) return { ...base, state: "self" };
+  const link = await prisma.friendship.findFirst({
+    where: {
+      OR: [
+        { requesterId: userId, addresseeId: person.id },
+        { requesterId: person.id, addresseeId: userId },
+      ],
+    },
+    select: { status: true, requesterId: true },
+  });
+  if (!link) return { ...base, state: "new" };
+  if (link.status === "accepted") return { ...base, state: "friends" };
+  return { ...base, state: link.requesterId === userId ? "sent" : "incoming" };
 }

@@ -1,0 +1,83 @@
+.wrap {
+  display: flex;
+  align-items: center;
+  gap: 1.2rem;
+}
+
+/* Always dark on white: phone cameras read that best, in any theme. */
+.qr {
+  flex-shrink: 0;
+  width: 168px;
+  height: 168px;
+  padding: 10px;
+  border-radius: 18px;
+  background: #fff;
+  border: 1px solid var(--border);
+}
+
+.qr svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.side {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  min-width: 0;
+}
+
+.text {
+  font-size: 0.9rem;
+  color: var(--ink-secondary);
+  line-height: 1.45;
+}
+
+.link {
+  font-size: 0.86rem;
+  font-weight: 700;
+  color: var(--accent);
+  overflow-wrap: anywhere;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.2rem;
+}
+
+.primary,
+.secondary {
+  padding: 0.5rem 0.95rem;
+  border-radius: 999px;
+  font-size: 0.86rem;
+  font-weight: 700;
+}
+
+.primary {
+  background: var(--accent);
+  color: var(--on-accent, #fff);
+}
+
+.secondary {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+@media (max-width: 520px) {
+  .wrap {
+    flex-direction: column;
+    text-align: center;
+  }
+
+  .qr {
+    width: 220px;
+    height: 220px;
+  }
+
+  .actions {
+    justify-content: center;
+  }
+}

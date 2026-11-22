@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { useAwards } from "./useAwards";
 import { useRouter } from "next/navigation";
@@ -119,7 +120,8 @@ export function FriendsPanel({ initial }: Props) {
         <div>
           <h1 className={styles.title}>Друзья</h1>
           <p className={styles.sub}>
-            Ваш ник <strong>@{board.me.username}</strong>. Человека можно найти только по нику.
+            Ваш ник <strong>@{board.me.username}</strong>. Человека можно найти только по нику — или
+            покажите ему <Link href="/app/settings#qr">свой QR-код</Link>.
           </p>
         </div>
       </header>
