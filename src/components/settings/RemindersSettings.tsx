@@ -71,7 +71,6 @@ export function DigestSettings({
 
   return (
     <div className={styles.card}>
-      <h2 className={styles.cardTitle}>Письма</h2>
       <label className={styles.switchRow}>
         <span>
           <b>Утреннее письмо с планом на день</b>
@@ -141,7 +140,6 @@ export function RemindersSettings({ initialReminders }: Omit<Props, "digestEnabl
 
   return (
     <div className={styles.card}>
-      <h2 className={styles.cardTitle}>Регулярные напоминания</h2>
       <p className={styles.hint}>
         Для того, что повторяется: чекап 4 раза в год, замена фильтра, оплата страховки. Мы
         посчитаем даты, заранее пришлём письмо и в нужный день добавим дело в планер.

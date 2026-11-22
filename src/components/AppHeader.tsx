@@ -82,7 +82,7 @@ export function AppHeader({
         ))}
       </nav>
       <div className={styles.user}>
-        <Link href="/app/settings" className={styles.profileLink} title="Профиль">
+        <Link href="/app/settings" className={styles.profileLink} title="Профиль и настройки">
           <span className={styles.identity}>
             <span className={styles.personName}>{name}</span>
             {username ? <span className={styles.nick}>@{username}</span> : null}

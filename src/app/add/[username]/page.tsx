@@ -32,7 +32,7 @@ export default async function AddFriendPage({ params }: Params) {
   if (!person?.username) notFound();
 
   const session = await auth();
-  if (session?.user?.id === person.id) redirect("/app/settings#qr");
+  if (session?.user?.id === person.id) redirect("/app/settings/qr");
   // Signed in: remember the link and open the app, which asks "add as a friend?".
   if (session?.user?.id) {
     return <RememberFriendLink username={person.username} thenGo="/app/friends" />;

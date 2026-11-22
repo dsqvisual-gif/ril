@@ -332,3 +332,21 @@
   flex-wrap: wrap;
   gap: 0.5rem;
 }
+
+.docLink {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.9rem 1rem;
+  color: var(--ink);
+  font-weight: 600;
+}
+
+.docLink + .docLink {
+  border-top: 1px solid var(--border);
+}
+
+.docLink span {
+  color: var(--ink-tertiary);
+  font-size: 1.3rem;
+}

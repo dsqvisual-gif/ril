@@ -121,7 +121,7 @@ export function FriendsPanel({ initial }: Props) {
           <h1 className={styles.title}>Друзья</h1>
           <p className={styles.sub}>
             Ваш ник <strong>@{board.me.username}</strong>. Человека можно найти только по нику — или
-            покажите ему <Link href="/app/settings#qr">свой QR-код</Link>.
+            покажите ему <Link href="/app/settings/qr">свой QR-код</Link>.
           </p>
         </div>
       </header>
