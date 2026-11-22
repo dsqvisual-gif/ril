@@ -1,6 +1,9 @@
 import { format, isValid, parseISO } from "date-fns";
 
 export const TASK_TITLE_MAX = 140;
+export const TASK_NOTE_MAX = 1000;
+export const TASK_ITEM_MAX = 100;
+export const TASK_ITEMS_MAX = 60;
 
 export function isDateKey(value: unknown): value is string {
   if (typeof value !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;

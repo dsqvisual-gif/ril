@@ -40,3 +40,25 @@
   gap: 0.65rem;
   min-height: 2rem;
 }
+
+.swipeHint {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem;
+  margin-top: -0.2rem;
+  padding: 0.55rem 0.5rem 0.55rem 0.9rem;
+  border-radius: var(--radius-sm);
+  background: var(--accent-soft);
+  color: var(--ink-secondary);
+  font-size: 0.84rem;
+}
+
+.swipeHint button {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  font-size: 1.1rem;
+  line-height: 1;
+  color: var(--ink-tertiary);
+}

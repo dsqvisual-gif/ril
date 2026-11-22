@@ -254,7 +254,8 @@ button {
   font-weight: 600;
 }
 
-.field input {
+.field input,
+.field textarea {
   border: 1px solid var(--border);
   background: var(--surface-solid);
   border-radius: var(--radius-sm);
@@ -264,7 +265,8 @@ button {
   transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
 
-.field input:focus {
+.field input:focus,
+.field textarea:focus {
   border-color: color-mix(in srgb, var(--accent) 45%, transparent);
   box-shadow: 0 0 0 4px var(--accent-soft);
 }

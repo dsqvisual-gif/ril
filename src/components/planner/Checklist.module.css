@@ -1,0 +1,163 @@
+.editor {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.item {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.15rem 0.1rem;
+  border-radius: 10px;
+}
+
+.box {
+  width: 20px;
+  height: 20px;
+  accent-color: var(--success);
+  cursor: pointer;
+  margin: 0;
+}
+
+.text {
+  border: none;
+  background: transparent;
+  padding: 0.35rem 0;
+  font: inherit;
+  color: var(--ink);
+  min-width: 0;
+  border-bottom: 1px solid transparent;
+}
+
+.text:focus {
+  outline: none;
+  border-bottom-color: var(--accent);
+}
+
+.remove {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  color: var(--ink-tertiary);
+  font-size: 1.2rem;
+  line-height: 1;
+}
+
+.remove:hover {
+  color: var(--danger);
+  background: rgba(255, 59, 48, 0.08);
+}
+
+.addRow {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.1rem 0.1rem;
+}
+
+.plus {
+  width: 20px;
+  text-align: center;
+  color: var(--accent);
+  font-weight: 700;
+  font-size: 1.15rem;
+}
+
+.addInput {
+  flex: 1;
+  min-width: 0;
+  border: none;
+  border-bottom: 1px dashed var(--border);
+  background: transparent;
+  padding: 0.45rem 0;
+  font: inherit;
+  color: var(--ink);
+}
+
+.addInput:focus {
+  outline: none;
+  border-bottom: 1px solid var(--accent);
+}
+
+.hint {
+  font-size: 0.8rem;
+  color: var(--ink-tertiary);
+  line-height: 1.4;
+}
+
+/* Live checklist inside an expanded task. */
+.live {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+}
+
+.liveItem {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 0.65rem;
+  min-height: 40px;
+}
+
+.liveItem label {
+  display: contents;
+  cursor: pointer;
+}
+
+.liveText {
+  font-size: 0.95rem;
+  line-height: 1.3;
+  overflow-wrap: anywhere;
+  cursor: pointer;
+}
+
+.liveDone .liveText {
+  text-decoration: line-through;
+  color: var(--ink-tertiary);
+}
+
+.liveBox {
+  width: 24px;
+  height: 24px;
+  border-radius: 7px;
+  border: 2px solid color-mix(in srgb, var(--accent) 35%, transparent);
+  display: grid;
+  place-items: center;
+  color: #fff;
+  font-size: 0.78rem;
+  font-weight: 800;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.liveDone .liveBox {
+  background: var(--success);
+  border-color: var(--success);
+}
+
+.progress {
+  height: 6px;
+  border-radius: 999px;
+  background: var(--track);
+  overflow: hidden;
+  margin: 0.1rem 0 0.35rem;
+}
+
+.progress span {
+  display: block;
+  height: 100%;
+  background: var(--success);
+  border-radius: inherit;
+  transition: width 0.25s ease;
+}

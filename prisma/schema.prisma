@@ -84,10 +84,26 @@ model Task {
   done      Boolean     @default(false)
   doneAt    DateTime?
   createdAt DateTime    @default(now())
+  note      String?
   shares    TaskShare[]
   viewerStates TaskViewerState[]
+  items     TaskItem[]
 
   @@index([userId, date])
+}
+
+/// A checklist line inside a task, e.g. one product in "buy groceries".
+/// A task with items closes only when every item is checked.
+model TaskItem {
+  id        String   @id @default(cuid())
+  taskId    String
+  task      Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  text      String
+  done      Boolean  @default(false)
+  position  Int      @default(0)
+  createdAt DateTime @default(now())
+
+  @@index([taskId, position])
 }
 
 model TaskShare {

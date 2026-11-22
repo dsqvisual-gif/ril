@@ -3,7 +3,14 @@
 import { prisma } from "@/lib/prisma";
 import { isLingering, resolveToday } from "@/lib/dates";
 import { requireUserId } from "@/lib/session";
-import { isDateKey, isTimeKey, TASK_TITLE_MAX } from "@/lib/validation";
+import {
+  isDateKey,
+  isTimeKey,
+  TASK_ITEMS_MAX,
+  TASK_ITEM_MAX,
+  TASK_NOTE_MAX,
+  TASK_TITLE_MAX,
+} from "@/lib/validation";
 import { toResult, UserError, type ActionResult } from "@/lib/action-result";
 import { syncAchievements } from "@/lib/achievement-stats";
 
@@ -28,6 +35,19 @@ export type TaskDTO = {
   ownerUsername: string | null;
   ownerName: string | null;
   partners: PersonDTO[];
+  note: string | null;
+  items: TaskItemDTO[];
+};
+
+export type TaskItemDTO = {
+  id: string;
+  text: string;
+  done: boolean;
+};
+
+export type TaskItemInput = {
+  text: string;
+  done?: boolean;
 };
 
 export type CreateTaskInput = {
@@ -37,6 +57,9 @@ export type CreateTaskInput = {
   important?: boolean;
   urgent?: boolean;
   friendIds?: string[];
+  note?: string | null;
+  /** The checklist; omitted keeps the current one when editing. */
+  items?: TaskItemInput[];
 };
 
 export type ToggleResult = {
@@ -56,6 +79,10 @@ function includeFor(userId: string) {
       where: { userId },
       select: { keptOn: true },
     },
+    items: {
+      select: { id: true, text: true, done: true },
+      orderBy: [{ position: "asc" as const }, { createdAt: "asc" as const }],
+    },
   };
 }
 
@@ -72,6 +99,8 @@ type TaskRecord = {
   user: { id: string; name: string; username: string | null };
   shares: { user: { id: string; name: string; username: string | null } }[];
   viewerStates: { keptOn: string | null }[];
+  note: string | null;
+  items: TaskItemDTO[];
 };
 
 function personFrom(user: {
@@ -114,6 +143,8 @@ function toDTO(task: TaskRecord, viewerId: string, aliases: Map<string, string>)
     ownerUsername: task.user.username,
     ownerName: task.userId === viewerId ? null : ownerAlias || task.user.name,
     partners,
+    note: task.note,
+    items: task.items,
   };
 }
 
@@ -199,6 +230,8 @@ export type SettleResult = {
   prompts: TaskDTO[];
   /** Whether overdue tasks were moved to today. */
   moved: boolean;
+  /** How many overdue tasks were moved. */
+  movedCount: number;
 };
 
 export async function settleOpenTasks(rawToday: string): Promise<SettleResult> {
@@ -233,7 +266,11 @@ export async function settleOpenTasks(rawToday: string): Promise<SettleResult> {
   const lingering = tasks.filter((task) =>
     isLingering(task.originDate || task.date, task.viewerStates[0]?.keptOn ?? null, today),
   );
-  return { prompts: await present(lingering, userId), moved: overdue.length > 0 };
+  return {
+    prompts: await present(lingering, userId),
+    moved: overdue.length > 0,
+    movedCount: overdue.length,
+  };
 }
 
 async function touchViewer(userId: string, taskId: string, data: { keptOn: string }) {
@@ -274,6 +311,26 @@ async function acceptedFriendIds(userId: string, ids: string[]): Promise<Set<str
   return allowed;
 }
 
+function cleanNote(raw: string | null | undefined): string | null {
+  const note = (raw ?? "").trim();
+  if (note.length > TASK_NOTE_MAX) throw new UserError(`Заметка длиннее ${TASK_NOTE_MAX} символов`);
+  return note || null;
+}
+
+function cleanItemText(raw: string): string {
+  const text = raw.trim().replace(/\s+/g, " ");
+  if (text.length > TASK_ITEM_MAX) throw new UserError(`Пункт длиннее ${TASK_ITEM_MAX} символов`);
+  return text;
+}
+
+function cleanItems(raw: TaskItemInput[] | undefined): { text: string; done: boolean; position: number }[] {
+  const items = (raw ?? [])
+    .map((item) => ({ text: cleanItemText(String(item.text ?? "")), done: Boolean(item.done) }))
+    .filter((item) => item.text);
+  if (items.length > TASK_ITEMS_MAX) throw new UserError(`В списке может быть до ${TASK_ITEMS_MAX} пунктов`);
+  return items.map((item, position) => ({ ...item, position }));
+}
+
 async function createTaskInner(input: CreateTaskInput): Promise<TaskDTO> {
   const userId = await requireUserId();
   const title = input.title.trim();
@@ -302,6 +359,8 @@ async function createTaskInner(input: CreateTaskInput): Promise<TaskDTO> {
     throw new UserError("Совместное дело можно добавить только с друзьями");
   }
 
+  const note = cleanNote(input.note);
+  const items = cleanItems(input.items);
   const task = await prisma.task.create({
     data: {
       userId,
@@ -311,6 +370,8 @@ async function createTaskInner(input: CreateTaskInput): Promise<TaskDTO> {
       time,
       important: Boolean(input.important),
       urgent: Boolean(input.urgent),
+      note,
+      items: { create: items },
       shares: {
         create: friendIds.map((friendId) => ({ userId: friendId })),
       },
@@ -326,7 +387,7 @@ async function updateTaskInner(taskId: string, input: CreateTaskInput): Promise<
   const userId = await requireUserId();
   const task = await prisma.task.findFirst({
     where: { id: taskId, ...accessWhere(userId) },
-    select: { id: true, userId: true, date: true, shares: { select: { userId: true } } },
+    select: { id: true, userId: true, date: true, done: true, shares: { select: { userId: true } } },
   });
   if (!task) throw new UserError("Задача не найдена");
   if (task.userId !== userId) throw new UserError("Изменить совместное дело может только автор");
@@ -350,6 +411,9 @@ async function updateTaskInner(taskId: string, input: CreateTaskInput): Promise<
   }
   const removed = [...current].filter((id) => !friendIds.includes(id));
 
+  const note = cleanNote(input.note);
+  const items = input.items === undefined ? null : cleanItems(input.items);
+
   // Moving a task to another day is a fresh plan, so it stops counting as carried over.
   const moved = input.date !== task.date;
   const updated = await prisma.task.update({
@@ -359,6 +423,18 @@ async function updateTaskInner(taskId: string, input: CreateTaskInput): Promise<
       time,
       important: Boolean(input.important),
       urgent: Boolean(input.urgent),
+      note,
+      ...(items
+        ? {
+            items: { deleteMany: {}, create: items },
+            // The list decides whether the task is closed.
+            ...(items.length > 0
+              ? items.every((item) => item.done)
+                ? { done: true, doneAt: task.done ? undefined : new Date() }
+                : { done: false, doneAt: null }
+              : {}),
+          }
+        : {}),
       ...(moved ? { date: input.date, originDate: input.date } : {}),
       shares: {
         deleteMany: removed.length > 0 ? { userId: { in: removed } } : [],
@@ -375,13 +451,22 @@ async function toggleTaskInner(taskId: string): Promise<ToggleResult> {
   const userId = await requireUserId();
   const task = await prisma.task.findFirst({
     where: { id: taskId, ...openWhere(userId) },
-    select: { id: true, userId: true, done: true, shares: { select: { userId: true } } },
+    select: {
+      id: true,
+      userId: true,
+      done: true,
+      shares: { select: { userId: true } },
+      items: { select: { done: true } },
+    },
   });
   if (!task) {
     throw new UserError("Задача не найдена");
   }
 
   const done = !task.done;
+  if (done && task.items.some((item) => !item.done)) {
+    throw new UserError("Сначала отметьте все пункты списка");
+  }
   const updated = await prisma.task.update({
     where: { id: task.id },
     data: {
@@ -437,6 +522,145 @@ async function deleteTaskInner(taskId: string): Promise<void> {
 
   // Deleting only lowers completed counts, so it cannot unlock achievements.
   await prisma.task.delete({ where: { id: task.id } });
+}
+
+/** Completes the task when its last item is checked and reopens it when one is unchecked. */
+async function closeByItems(taskId: string, userId: string): Promise<ToggleResult> {
+  const task = await prisma.task.findUniqueOrThrow({
+    where: { id: taskId },
+    select: {
+      id: true,
+      userId: true,
+      done: true,
+      shares: { select: { userId: true } },
+      items: { select: { done: true } },
+    },
+  });
+  const allDone = task.items.length > 0 && task.items.every((item) => item.done);
+  const closing = allDone && !task.done;
+  if (closing || (!allDone && task.done && task.items.length > 0)) {
+    await prisma.task.update({
+      where: { id: task.id },
+      data: { done: allDone, doneAt: allDone ? new Date() : null },
+    });
+  }
+  const involved = closing ? [task.userId, ...task.shares.map((share) => share.userId)] : [];
+  const [fresh, synced] = await Promise.all([
+    prisma.task.findUniqueOrThrow({ where: { id: task.id }, include: includeFor(userId) }),
+    Promise.all(involved.map(syncAchievements)),
+  ]);
+  const [dto] = await present([fresh], userId);
+  return { task: dto, newlyUnlocked: synced[involved.indexOf(userId)]?.newlyUnlocked ?? [] };
+}
+
+async function findItemTask(taskId: string, userId: string) {
+  const task = await prisma.task.findFirst({
+    where: { id: taskId, ...accessWhere(userId) },
+    select: { id: true, _count: { select: { items: true } } },
+  });
+  if (!task) throw new UserError("Задача не найдена");
+  return task;
+}
+
+async function toggleTaskItemInner(taskId: string, itemId: string): Promise<ToggleResult> {
+  const userId = await requireUserId();
+  await findItemTask(taskId, userId);
+  const item = await prisma.taskItem.findFirst({ where: { id: itemId, taskId }, select: { done: true } });
+  if (!item) throw new UserError("Пункт не найден");
+  await prisma.taskItem.update({ where: { id: itemId }, data: { done: !item.done } });
+  return closeByItems(taskId, userId);
+}
+
+async function addTaskItemInner(taskId: string, rawText: string): Promise<ToggleResult> {
+  const userId = await requireUserId();
+  const task = await findItemTask(taskId, userId);
+  const lines = String(rawText ?? "")
+    .split(/\n|;/)
+    .map(cleanItemText)
+    .filter(Boolean);
+  if (lines.length === 0) throw new UserError("Напишите, что добавить");
+  if (task._count.items + lines.length > TASK_ITEMS_MAX) {
+    throw new UserError(`В списке может быть до ${TASK_ITEMS_MAX} пунктов`);
+  }
+  const last = await prisma.taskItem.aggregate({ where: { taskId }, _max: { position: true } });
+  const start = (last._max.position ?? -1) + 1;
+  await prisma.taskItem.createMany({
+    data: lines.map((text, i) => ({ taskId, text, position: start + i })),
+  });
+  return closeByItems(taskId, userId);
+}
+
+async function removeTaskItemInner(taskId: string, itemId: string): Promise<ToggleResult> {
+  const userId = await requireUserId();
+  await findItemTask(taskId, userId);
+  const { count } = await prisma.taskItem.deleteMany({ where: { id: itemId, taskId } });
+  if (count === 0) throw new UserError("Пункт не найден");
+  return closeByItems(taskId, userId);
+}
+
+async function moveTaskInner(taskId: string, date: string, originDate?: string | null): Promise<TaskDTO> {
+  const userId = await requireUserId();
+  if (!isDateKey(date)) throw new UserError("Некорректная дата");
+  if (originDate != null && !isDateKey(originDate)) throw new UserError("Некорректная дата");
+  const task = await prisma.task.findFirst({
+    where: { id: taskId, ...accessWhere(userId) },
+    select: { id: true, userId: true },
+  });
+  if (!task) throw new UserError("Задача не найдена");
+  if (task.userId !== userId) throw new UserError("Перенести совместное дело может только автор");
+  const updated = await prisma.task.update({
+    where: { id: task.id },
+    // A moved task is a fresh plan; undo passes the old origin back.
+    data: { date, originDate: originDate ?? date },
+    include: includeFor(userId),
+  });
+  const [dto] = await present([updated], userId);
+  return dto;
+}
+
+export type SearchHit = TaskDTO;
+
+async function searchTasksInner(rawQuery: string): Promise<SearchHit[]> {
+  const userId = await requireUserId();
+  const query = String(rawQuery ?? "").trim().slice(0, 80);
+  if (query.length < 2) return [];
+  const contains = { contains: query, mode: "insensitive" as const };
+  const tasks = await prisma.task.findMany({
+    where: {
+      AND: [
+        accessWhere(userId),
+        { OR: [{ title: contains }, { note: contains }, { items: { some: { text: contains } } }] },
+      ],
+    },
+    include: includeFor(userId),
+    orderBy: [{ date: "desc" }, { createdAt: "desc" }],
+    take: 40,
+  });
+  return present(tasks, userId);
+}
+
+export async function toggleTaskItem(taskId: string, itemId: string): Promise<ActionResult<ToggleResult>> {
+  return toResult(() => toggleTaskItemInner(taskId, itemId));
+}
+
+export async function addTaskItem(taskId: string, text: string): Promise<ActionResult<ToggleResult>> {
+  return toResult(() => addTaskItemInner(taskId, text));
+}
+
+export async function removeTaskItem(taskId: string, itemId: string): Promise<ActionResult<ToggleResult>> {
+  return toResult(() => removeTaskItemInner(taskId, itemId));
+}
+
+export async function moveTask(
+  taskId: string,
+  date: string,
+  originDate?: string | null,
+): Promise<ActionResult<TaskDTO>> {
+  return toResult(() => moveTaskInner(taskId, date, originDate));
+}
+
+export async function searchTasks(query: string): Promise<ActionResult<SearchHit[]>> {
+  return toResult(() => searchTasksInner(query));
 }
 
 export async function keepTask(taskId: string, rawToday: string): Promise<ActionResult<void>> {

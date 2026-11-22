@@ -1,0 +1,113 @@
+.toast {
+  position: fixed;
+  left: 50%;
+  bottom: calc(1.25rem + env(safe-area-inset-bottom));
+  transform: translateX(-50%);
+  z-index: 55;
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+  min-width: min(320px, calc(100vw - 2rem));
+  max-width: min(460px, calc(100vw - 2rem));
+  padding: 0.8rem 0.8rem 0.8rem 1.1rem;
+  border-radius: 16px;
+  background: #1d1f27;
+  color: #fff;
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.28);
+  overflow: hidden;
+  animation: undoIn 0.25s ease both;
+}
+
+.text {
+  flex: 1;
+  font-size: 0.92rem;
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+.undo {
+  padding: 0.45rem 0.8rem;
+  border-radius: 10px;
+  font-weight: 750;
+  font-size: 0.9rem;
+  color: #8fb4ff;
+  white-space: nowrap;
+}
+
+.undo:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.close {
+  padding: 0.2rem 0.5rem;
+  font-size: 1.3rem;
+  line-height: 1;
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.bar {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  height: 3px;
+  width: 100%;
+  background: #8fb4ff;
+  transform-origin: left;
+  animation-name: undoBar;
+  animation-timing-function: linear;
+  animation-fill-mode: both;
+}
+
+@keyframes undoIn {
+  from {
+    opacity: 0;
+    transform: translate(-50%, 12px);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
+}
+
+@keyframes undoBar {
+  from {
+    transform: scaleX(1);
+  }
+  to {
+    transform: scaleX(0);
+  }
+}
+
+/* On phones the voice button sits at the bottom centre: stay above it. */
+@media (max-width: 768px) {
+  .toast {
+    left: 1rem;
+    right: 1rem;
+    bottom: calc(6rem + env(safe-area-inset-bottom));
+    transform: none;
+    min-width: 0;
+    animation-name: undoInMobile;
+  }
+}
+
+@keyframes undoInMobile {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+:root[data-theme="dark"] .toast,
+:root[data-theme="midnight"] .toast {
+  background: #f2f3f7;
+  color: #1d1f27;
+}
+
+:root[data-theme="dark"] .undo,
+:root[data-theme="midnight"] .undo {
+  color: #2f5fd0;
+}

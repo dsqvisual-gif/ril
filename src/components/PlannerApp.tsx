@@ -11,16 +11,24 @@ import { AchievementToast } from "./AchievementToast";
 import { DoneCelebration } from "./DoneCelebration";
 import { StalePrompt } from "./StalePrompt";
 import { VoiceMic } from "./VoiceMic";
+import type { TaskHandlers } from "./TaskRow";
+import { UndoToast } from "./planner/UndoToast";
+import { SearchIcon, TaskSearch } from "./planner/TaskSearch";
 import {
+  addTaskItem,
   createTask,
   deleteTask,
   keepTask,
+  moveTask,
   removeTask,
+  removeTaskItem,
   settleOpenTasks,
   toggleTask,
+  toggleTaskItem,
   updateTask,
   type CreateTaskInput,
   type TaskDTO,
+  type ToggleResult,
 } from "@/lib/actions/tasks";
 import type { FriendOption } from "@/lib/actions/friends";
 import { errorText, unwrap, type ActionResult } from "@/lib/action-result";
@@ -55,16 +63,32 @@ export function PlannerApp({ initialTasks, initialDate, friends }: Props) {
   } | null>(null);
   // Plain messages are errors; unlocked achievements go through `celebrate`.
   const setToast = useCallback(
-    (text: string | null) => setToastState(text ? { text, kind: "error" } : null),
+    (text: string | null) =>
+      setToastState(text ? { text, kind: "error" } : null),
     [],
   );
   const celebrate = (codes: string[]) => {
     const unlocked = describeUnlocked(codes);
-    if (unlocked) setToastState({ text: unlocked.title, icon: unlocked.icon, kind: "achievement" });
+    if (unlocked)
+      setToastState({
+        text: unlocked.title,
+        icon: unlocked.icon,
+        kind: "achievement",
+      });
   };
   const [cheerKey, setCheerKey] = useState(0);
   const [prompts, setPrompts] = useState<TaskDTO[]>([]);
   const dismissed = useRef(new Set<string>());
+  const [searching, setSearching] = useState(false);
+  const [notice, setNotice] = useState<{
+    key: number;
+    text: string;
+    undo?: () => void;
+  } | null>(null);
+  const say = useCallback((text: string, undo?: () => void) => {
+    setNotice({ key: Date.now(), text, undo });
+  }, []);
+  const closeNotice = useCallback(() => setNotice(null), []);
 
   const visibleDates = useMemo(() => {
     if (mode === "day") return [date];
@@ -112,16 +136,28 @@ export function PlannerApp({ initialTasks, initialDate, friends }: Props) {
       const localToday = todayKey();
       try {
         const settled = await settleOpenTasks(localToday);
-        setPrompts(settled.prompts.filter((task) => !dismissed.current.has(task.id)));
+        setPrompts(
+          settled.prompts.filter((task) => !dismissed.current.has(task.id)),
+        );
+        if (settled.movedCount > 0) {
+          const n = settled.movedCount;
+          say(
+            n === 1
+              ? "Невыполненное дело перенесено на сегодня"
+              : `${n} ${pluralTasks(n)} с прошлых дней перенесены на сегодня`,
+          );
+        }
         if (settled.moved) {
-          setTasks((prev) => prev.filter((task) => task.done || task.date >= localToday));
+          setTasks((prev) =>
+            prev.filter((task) => task.done || task.date >= localToday),
+          );
           await loadRange(visibleRef.current);
         }
       } catch {
         setToast("Не удалось перенести старые дела");
       }
     })();
-  }, [loadRange, setToast]);
+  }, [loadRange, setToast, say]);
 
   // The server already rendered the initial day; fetch only when the range changes.
   const loadedRange = useRef(initialDate);
@@ -228,59 +264,242 @@ export function PlannerApp({ initialTasks, initialDate, friends }: Props) {
     }
   }
 
-  async function handleDelete(id: string) {
-    const index = tasks.findIndex((task) => task.id === id);
-    if (index < 0 || pending.current.has(id)) return;
-    const removed = tasks[index];
-    pending.current.add(id);
-    setTasks((prev) => prev.filter((t) => t.id !== id));
+  // Deleting waits a few seconds so "Отменить" can bring the task back untouched.
+  const pendingDeletes = useRef(
+    new Map<string, ReturnType<typeof setTimeout>>(),
+  );
 
+  const commitDelete = useCallback(
+    async (task: TaskDTO) => {
+      pendingDeletes.current.delete(task.id);
+      const result = await deleteTask(task.id);
+      if (!result.ok) {
+        setTasks((prev) =>
+          prev.some((t) => t.id === task.id) ? prev : [...prev, task],
+        );
+        setToast(result.error);
+        return;
+      }
+      setPrompts((prev) => prev.filter((t) => t.id !== task.id));
+    },
+    [setToast],
+  );
+
+  const deleting = useRef(new Map<string, TaskDTO>());
+  useEffect(() => {
+    const timers = pendingDeletes.current;
+    const tasksById = deleting.current;
+    const flush = () => {
+      for (const [id, timer] of timers) {
+        clearTimeout(timer);
+        const task = tasksById.get(id);
+        if (task) void commitDelete(task);
+      }
+      timers.clear();
+    };
+    window.addEventListener("pagehide", flush);
+    return () => {
+      window.removeEventListener("pagehide", flush);
+      flush();
+    };
+  }, [commitDelete]);
+
+  function handleDelete(id: string) {
+    const task = tasks.find((t) => t.id === id);
+    if (!task || pending.current.has(id) || pendingDeletes.current.has(id))
+      return;
+    setTasks((prev) => prev.filter((t) => t.id !== id));
+    setPrompts((prev) => prev.filter((t) => t.id !== id));
+    deleting.current.set(id, task);
+    pendingDeletes.current.set(
+      id,
+      setTimeout(() => {
+        deleting.current.delete(id);
+        void commitDelete(task);
+      }, 5200),
+    );
+    say(`Удалено: «${short(task.title)}»`, () => {
+      const timer = pendingDeletes.current.get(id);
+      if (!timer) return;
+      clearTimeout(timer);
+      pendingDeletes.current.delete(id);
+      deleting.current.delete(id);
+      setTasks((prev) =>
+        prev.some((t) => t.id === id) ? prev : [...prev, task],
+      );
+    });
+  }
+
+  async function handlePostpone(id: string) {
+    const before = tasks.find((t) => t.id === id);
+    if (!before || pending.current.has(id)) return;
+    pending.current.add(id);
+    const target = shiftDateKey(before.date, 1);
+    setTasks((prev) =>
+      prev.map((t) =>
+        t.id === id ? { ...t, date: target, originDate: target } : t,
+      ),
+    );
+    setPrompts((prev) => prev.filter((t) => t.id !== id));
     try {
-      unwrap(await deleteTask(id));
-      setPrompts((prev) => prev.filter((t) => t.id !== id));
-    } catch (err) {
-      setTasks((prev) => {
-        const next = [...prev];
-        next.splice(Math.min(index, next.length), 0, removed);
-        return next;
+      const moved = unwrap(await moveTask(id, target));
+      setTasks((prev) => prev.map((t) => (t.id === id ? moved : t)));
+      say(`«${short(before.title)}» — на завтра`, () => {
+        setTasks((prev) => prev.map((t) => (t.id === id ? before : t)));
+        void moveTask(id, before.date, before.originDate).then((result) => {
+          if (!result.ok) setToast(result.error);
+          else
+            setTasks((prev) =>
+              prev.map((t) => (t.id === id ? result.data : t)),
+            );
+        });
       });
-      setToast(errorText(err, "Не удалось удалить дело"));
+    } catch (err) {
+      setTasks((prev) => prev.map((t) => (t.id === id ? before : t)));
+      setToast(errorText(err, "Не удалось перенести дело"));
     } finally {
       pending.current.delete(id);
     }
   }
 
+  function applyItems(result: ToggleResult, wasDone: boolean) {
+    setTasks((prev) =>
+      prev.map((t) => (t.id === result.task.id ? result.task : t)),
+    );
+    if (result.task.done && !wasDone) {
+      setCheerKey((key) => key + 1);
+      setPrompts((prev) => prev.filter((t) => t.id !== result.task.id));
+    }
+    if (result.newlyUnlocked.length > 0) celebrate(result.newlyUnlocked);
+  }
+
+  // Item checks are queued per task so quick taps arrive in order.
+  const itemQueue = useRef(new Map<string, Promise<unknown>>());
+  function queued<T>(taskId: string, run: () => Promise<T>): Promise<T> {
+    const previous = itemQueue.current.get(taskId) ?? Promise.resolve();
+    const next = previous.catch(() => undefined).then(run);
+    itemQueue.current.set(taskId, next);
+    return next;
+  }
+
+  function handleItemToggle(taskId: string, itemId: string) {
+    const before = tasks.find((t) => t.id === taskId);
+    if (!before) return;
+    const items = before.items.map((it) =>
+      it.id === itemId ? { ...it, done: !it.done } : it,
+    );
+    const done = items.every((it) => it.done);
+    setTasks((prev) =>
+      prev.map((t) => (t.id === taskId ? { ...t, items, done } : t)),
+    );
+    if (done && !before.done) setCheerKey((key) => key + 1);
+    void queued(taskId, () => toggleTaskItem(taskId, itemId)).then((result) => {
+      if (!result.ok) {
+        setTasks((prev) => prev.map((t) => (t.id === taskId ? before : t)));
+        setToast(result.error);
+        return;
+      }
+      // The cheer already played on the optimistic update.
+      applyItems(result.data, true);
+    });
+  }
+
+  async function handleItemAdd(taskId: string, text: string) {
+    const before = tasks.find((t) => t.id === taskId);
+    const result = await queued(taskId, () => addTaskItem(taskId, text));
+    if (!result.ok) {
+      setToast(result.error);
+      throw new Error(result.error);
+    }
+    applyItems(result.data, before?.done ?? false);
+  }
+
+  function handleItemRemove(taskId: string, itemId: string) {
+    const before = tasks.find((t) => t.id === taskId);
+    if (!before) return;
+    const items = before.items.filter((it) => it.id !== itemId);
+    setTasks((prev) =>
+      prev.map((t) => (t.id === taskId ? { ...t, items } : t)),
+    );
+    void queued(taskId, () => removeTaskItem(taskId, itemId)).then((result) => {
+      if (!result.ok) {
+        setTasks((prev) => prev.map((t) => (t.id === taskId ? before : t)));
+        setToast(result.error);
+        return;
+      }
+      applyItems(result.data, before.done);
+    });
+  }
+
+  const handlers: TaskHandlers = {
+    onToggle: (id) => void handleToggle(id),
+    onDelete: handleDelete,
+    onUpdate: handleUpdate,
+    onPostpone: (id) => void handlePostpone(id),
+    onItemToggle: handleItemToggle,
+    onItemAdd: handleItemAdd,
+    onItemRemove: handleItemRemove,
+  };
+
   return (
     <div className={styles.root}>
       <div className={styles.toolbar}>
         <SegmentedControl value={mode} onChange={setMode} />
-        <div className={styles.nav}>
+        <div className={styles.navGroup}>
           <button
             type="button"
-            className={styles.navBtn}
-            onClick={() => handleNavigate(-1)}
-            aria-label="Назад"
+            className={
+              searching
+                ? `${styles.searchBtn} ${styles.searchOn}`
+                : styles.searchBtn
+            }
+            onClick={() => setSearching((value) => !value)}
+            aria-label="Поиск по делам"
+            aria-expanded={searching}
+            title="Поиск"
           >
-            ‹
+            <SearchIcon />
           </button>
-          <button
-            type="button"
-            className={styles.todayBtn}
-            onClick={goToday}
-            aria-label={date === todayKey() ? "Сегодня" : "Вернуться к сегодня"}
-          >
-            {mode === "day" ? plannerNavLabel(date) : "Сегодня"}
-          </button>
-          <button
-            type="button"
-            className={styles.navBtn}
-            onClick={() => handleNavigate(1)}
-            aria-label="Вперёд"
-          >
-            ›
-          </button>
+          <div className={styles.nav}>
+            <button
+              type="button"
+              className={styles.navBtn}
+              onClick={() => handleNavigate(-1)}
+              aria-label="Назад"
+            >
+              ‹
+            </button>
+            <button
+              type="button"
+              className={styles.todayBtn}
+              onClick={goToday}
+              aria-label={
+                date === todayKey() ? "Сегодня" : "Вернуться к сегодня"
+              }
+            >
+              {mode === "day" ? plannerNavLabel(date) : "Сегодня"}
+            </button>
+            <button
+              type="button"
+              className={styles.navBtn}
+              onClick={() => handleNavigate(1)}
+              aria-label="Вперёд"
+            >
+              ›
+            </button>
+          </div>
         </div>
       </div>
+
+      {searching ? (
+        <TaskSearch
+          onClose={() => setSearching(false)}
+          onPick={(day) => {
+            setSearching(false);
+            selectDay(day);
+          }}
+        />
+      ) : null}
 
       {title ? <h2 className={styles.rangeTitle}>{title}</h2> : null}
 
@@ -297,9 +516,7 @@ export function PlannerApp({ initialTasks, initialDate, friends }: Props) {
           tasks={visibleTasks}
           friends={friends}
           onCreate={handleCreate}
-          onToggle={handleToggle}
-          onDelete={handleDelete}
-          onUpdate={handleUpdate}
+          handlers={handlers}
           busyId={busyId}
         />
       ) : null}
@@ -312,7 +529,18 @@ export function PlannerApp({ initialTasks, initialDate, friends }: Props) {
         <MonthView date={date} tasks={visibleTasks} onSelectDay={selectDay} />
       ) : null}
 
-      {cheerKey > 0 ? <DoneCelebration key={cheerKey} onDone={dismissCheer} /> : null}
+      {cheerKey > 0 ? (
+        <DoneCelebration key={cheerKey} onDone={dismissCheer} />
+      ) : null}
+
+      {notice ? (
+        <UndoToast
+          key={notice.key}
+          text={notice.text}
+          onUndo={notice.undo}
+          onClose={closeNotice}
+        />
+      ) : null}
 
       {toast ? (
         <AchievementToast
@@ -338,4 +566,16 @@ export function PlannerApp({ initialTasks, initialDate, friends }: Props) {
       />
     </div>
   );
+}
+
+function short(title: string): string {
+  return title.length > 32 ? `${title.slice(0, 30)}…` : title;
+}
+
+function pluralTasks(n: number): string {
+  const mod10 = n % 10;
+  const mod100 = n % 100;
+  if (mod10 === 1 && mod100 !== 11) return "дело";
+  if (mod10 >= 2 && mod10 <= 4 && (mod100 < 12 || mod100 > 14)) return "дела";
+  return "дел";
 }

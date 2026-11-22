@@ -3,9 +3,10 @@
 import { useId, useState, type FormEvent } from "react";
 import Link from "next/link";
 import styles from "./AddTaskForm.module.css";
-import type { CreateTaskInput } from "@/lib/actions/tasks";
+import type { CreateTaskInput, TaskItemInput } from "@/lib/actions/tasks";
 import type { FriendOption } from "@/lib/actions/friends";
-import { TASK_TITLE_MAX } from "@/lib/validation";
+import { TASK_NOTE_MAX, TASK_TITLE_MAX } from "@/lib/validation";
+import { ChecklistEditor } from "./planner/ChecklistEditor";
 import { errorText } from "@/lib/action-result";
 
 type Props = {
@@ -67,6 +68,10 @@ export function TaskEditor({
   const [friendIds, setFriendIds] = useState<string[]>(initial.friendIds ?? []);
   const [important, setImportant] = useState(Boolean(initial.important));
   const [urgent, setUrgent] = useState(Boolean(initial.urgent));
+  const [note, setNote] = useState(initial.note ?? "");
+  const [withNote, setWithNote] = useState(Boolean(initial.note));
+  const [items, setItems] = useState<TaskItemInput[]>(initial.items ?? []);
+  const [withList, setWithList] = useState((initial.items?.length ?? 0) > 0);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -89,6 +94,8 @@ export function TaskEditor({
         important,
         urgent,
         friendIds,
+        note: withNote ? note.trim() || null : null,
+        items: withList ? items.filter((item) => item.text.trim()) : [],
       });
     } catch (err) {
       setError(errorText(err, "Не удалось сохранить"));
@@ -111,6 +118,47 @@ export function TaskEditor({
           required
         />
       </div>
+
+      <div className={styles.extras}>
+        <button
+          type="button"
+          className={withList ? styles.extraOn : styles.extra}
+          aria-pressed={withList}
+          onClick={() => setWithList((value) => !value)}
+        >
+          <span aria-hidden>☑</span> Список
+        </button>
+        <button
+          type="button"
+          className={withNote ? styles.extraOn : styles.extra}
+          aria-pressed={withNote}
+          onClick={() => setWithNote((value) => !value)}
+        >
+          <span aria-hidden>✎</span> Заметка
+        </button>
+      </div>
+
+      {withList ? (
+        <div className={styles.section}>
+          <span className={styles.sectionLabel}>Список</span>
+          <ChecklistEditor items={items} onChange={setItems} />
+        </div>
+      ) : null}
+
+      {withNote ? (
+        <div className="field">
+          <label htmlFor={`${id}-note`}>Заметка</label>
+          <textarea
+            id={`${id}-note`}
+            className={styles.note}
+            value={note}
+            onChange={(e) => setNote(e.target.value)}
+            placeholder="Адрес, телефон, ссылка — всё, что пригодится"
+            maxLength={TASK_NOTE_MAX}
+            rows={3}
+          />
+        </div>
+      ) : null}
 
       {withDate ? (
         <div className="field">

@@ -2,7 +2,8 @@
 
 import { format } from "date-fns";
 import { ru } from "date-fns/locale";
-import { TaskRow } from "./TaskRow";
+import { TaskRow, type TaskHandlers } from "./TaskRow";
+import { markSwipeLearned, useSwipeHint } from "./planner/swipe-hint";
 import { AddTaskForm } from "./AddTaskForm";
 import {
   formatDayTitle,
@@ -20,9 +21,7 @@ type Props = {
   tasks: TaskDTO[];
   friends: FriendOption[];
   onCreate: (input: CreateTaskInput) => Promise<void>;
-  onToggle: (id: string) => void;
-  onDelete: (id: string) => void;
-  onUpdate: (id: string, input: CreateTaskInput) => Promise<void>;
+  handlers: TaskHandlers;
   busyId?: string | null;
 };
 
@@ -31,11 +30,10 @@ export function DayView({
   tasks,
   friends,
   onCreate,
-  onToggle,
-  onDelete,
-  onUpdate,
+  handlers,
   busyId,
 }: Props) {
+  const swipeHint = useSwipeHint();
   const open = tasks.filter((t) => !t.done);
   const done = tasks.filter((t) => t.done);
   const named = relativeDayName(date);
@@ -58,9 +56,7 @@ export function DayView({
             key={task.id}
             task={task}
             friends={friends}
-            onToggle={onToggle}
-            onDelete={onDelete}
-            onUpdate={onUpdate}
+            {...handlers}
             busy={busyId === task.id}
           />
         ))}
@@ -69,13 +65,22 @@ export function DayView({
             key={task.id}
             task={task}
             friends={friends}
-            onToggle={onToggle}
-            onDelete={onDelete}
-            onUpdate={onUpdate}
+            {...handlers}
             busy={busyId === task.id}
           />
         ))}
       </div>
+
+      {swipeHint && open.length > 0 ? (
+        <p className={styles.swipeHint}>
+          <span>
+            Смахните дело <b>вправо</b> — готово, <b>влево</b> — на завтра
+          </span>
+          <button type="button" onClick={markSwipeLearned} aria-label="Понятно">
+            ×
+          </button>
+        </p>
+      ) : null}
 
       <AddTaskForm date={date} friends={friends} onCreate={onCreate} />
     </section>

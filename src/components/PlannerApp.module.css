@@ -66,3 +66,27 @@
     text-align: center;
   }
 }
+
+.navGroup {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.searchBtn {
+  width: 46px;
+  height: 46px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  color: var(--ink-secondary);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.searchBtn:hover,
+.searchOn {
+  color: var(--accent);
+  background: var(--accent-soft);
+}
