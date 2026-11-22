@@ -223,7 +223,8 @@ async function interpretVoiceInner(
     title: row.title,
     date: row.date,
     time: row.time,
-    canDelete: row.userId === userId,
+    // Deleting a shared task removes it only for the speaker, so any visible task can go.
+    canDelete: true,
   }));
 
   const days = Array.from({ length: 8 }, (_, index) => {

@@ -318,7 +318,10 @@ export function PlannerApp({ initialTasks, initialDate, friends }: Props) {
         void commitDelete(task);
       }, 5200),
     );
-    say(`Удалено: «${short(task.title)}»`, () => {
+    const text = task.shared
+      ? `Удалено у вас: «${short(task.title)}». У ${task.partners.length > 1 ? "друзей" : "друга"} дело осталось`
+      : `Удалено: «${short(task.title)}»`;
+    say(text, () => {
       const timer = pendingDeletes.current.get(id);
       if (!timer) return;
       clearTimeout(timer);

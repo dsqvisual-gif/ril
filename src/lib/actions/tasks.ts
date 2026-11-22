@@ -491,37 +491,47 @@ async function toggleTaskInner(taskId: string): Promise<ToggleResult> {
 }
 
 async function removeTaskInner(taskId: string): Promise<void> {
-  const userId = await requireUserId();
-  const task = await prisma.task.findFirst({
-    where: { id: taskId, ...accessWhere(userId) },
-    select: { id: true, userId: true },
-  });
-  if (!task) throw new UserError("Задача не найдена");
-  if (task.userId === userId) {
-    await deleteTaskInner(taskId);
-    return;
-  }
-  await prisma.$transaction([
-    prisma.taskShare.deleteMany({ where: { taskId: task.id, userId } }),
-    prisma.taskViewerState.deleteMany({ where: { taskId: task.id, userId } }),
-  ]);
+  await deleteTaskInner(taskId);
 }
 
+/**
+ * Deletes a task for the viewer only. Everyone else who shares it keeps it:
+ * a participant simply leaves; the author hands the task to the longest-standing
+ * participant, who becomes its author. A task shared with nobody is deleted.
+ */
 async function deleteTaskInner(taskId: string): Promise<void> {
   const userId = await requireUserId();
   const task = await prisma.task.findFirst({
     where: { id: taskId, ...accessWhere(userId) },
-    select: { id: true, userId: true },
+    select: {
+      id: true,
+      userId: true,
+      shares: { select: { userId: true }, orderBy: { createdAt: "asc" } },
+    },
   });
   if (!task) {
     throw new UserError("Задача не найдена");
   }
+
   if (task.userId !== userId) {
-    throw new UserError("Удалить совместное дело может только автор");
+    await prisma.$transaction([
+      prisma.taskShare.deleteMany({ where: { taskId: task.id, userId } }),
+      prisma.taskViewerState.deleteMany({ where: { taskId: task.id, userId } }),
+    ]);
+    return;
   }
 
-  // Deleting only lowers completed counts, so it cannot unlock achievements.
-  await prisma.task.delete({ where: { id: task.id } });
+  const heir = task.shares[0]?.userId;
+  if (!heir) {
+    // Deleting only lowers completed counts, so it cannot unlock achievements.
+    await prisma.task.delete({ where: { id: task.id } });
+    return;
+  }
+  await prisma.$transaction([
+    prisma.task.update({ where: { id: task.id }, data: { userId: heir } }),
+    prisma.taskShare.deleteMany({ where: { taskId: task.id, userId: heir } }),
+    prisma.taskViewerState.deleteMany({ where: { taskId: task.id, userId } }),
+  ]);
 }
 
 /** Completes the task when its last item is checked and reopens it when one is unchecked. */

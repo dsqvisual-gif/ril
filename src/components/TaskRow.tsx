@@ -229,8 +229,8 @@ export function TaskRow({ task, friends, busy, ...handlers }: Props) {
                 </div>
               ) : null}
             </div>
-            {task.viewerIsOwner ? (
-              <div className={styles.actions}>
+            <div className={styles.actions}>
+              {task.viewerIsOwner ? (
                 <button
                   type="button"
                   className={styles.edit}
@@ -241,20 +241,18 @@ export function TaskRow({ task, friends, busy, ...handlers }: Props) {
                 >
                   ✎
                 </button>
-                <button
-                  type="button"
-                  className={styles.delete}
-                  aria-label="Удалить"
-                  title="Удалить"
-                  disabled={busy}
-                  onClick={() => onDelete(task.id)}
-                >
-                  ×
-                </button>
-              </div>
-            ) : (
-              <span />
-            )}
+              ) : null}
+              <button
+                type="button"
+                className={styles.delete}
+                aria-label={task.shared ? "Удалить у себя" : "Удалить"}
+                title={task.shared ? "Удалить у себя — у остальных дело останется" : "Удалить"}
+                disabled={busy}
+                onClick={() => onDelete(task.id)}
+              >
+                ×
+              </button>
+            </div>
           </div>
 
           {open && hasDetails ? (
