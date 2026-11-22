@@ -12,6 +12,7 @@ import { listReminders } from "@/lib/actions/reminders";
 import { DigestSettings, RemindersSettings } from "@/components/settings/RemindersSettings";
 import { MomModeSwitch } from "@/components/settings/MomModeSwitch";
 import { AvatarSettings } from "@/components/settings/AvatarSettings";
+import { NameEditor } from "@/components/settings/NameEditor";
 import { FriendQr } from "@/components/settings/FriendQr";
 import { friendLink } from "@/lib/friend-link";
 import QRCode from "qrcode";
@@ -63,7 +64,9 @@ export default async function SettingsPage() {
         <dl className={styles.list}>
           <div>
             <dt>Имя</dt>
-            <dd>{user.name}</dd>
+            <dd>
+              <NameEditor initial={user.name} />
+            </dd>
           </div>
           <div>
             <dt>Ник</dt>

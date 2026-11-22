@@ -313,3 +313,22 @@
 :global([data-theme="midnight"]) .momCard {
   background: linear-gradient(135deg, rgba(255, 143, 163, 0.12), var(--surface-solid) 60%);
 }
+
+.nameRow {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.6rem;
+}
+
+.nameForm {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.nameActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}

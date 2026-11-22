@@ -31,10 +31,19 @@ export default async function AppLayout({
   // A deleted account can still hold a valid session cookie.
   const exists = await prisma.user.findUnique({
     where: { id: user.id },
-    select: { id: true, theme: true, onboardedAt: true, momMode: true, image: true, avatarVersion: true },
+    select: {
+      id: true,
+      name: true,
+      theme: true,
+      onboardedAt: true,
+      momMode: true,
+      image: true,
+      avatarVersion: true,
+    },
   });
   if (!exists) redirect("/goodbye");
-  const name = user.name ?? "";
+  // From the DB, so a renamed profile shows at once (the session keeps the old name).
+  const name = exists.name || user.name || "";
   const childInvites = await listChildInvites();
   const friendLink =
     user.username && exists.onboardedAt ? await pendingFriendLink(user.id) : null;
