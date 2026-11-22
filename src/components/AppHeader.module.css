@@ -49,11 +49,23 @@
 }
 
 .identity,
-.sheetUser {
+.sheetText {
   display: flex;
   flex-direction: column;
   align-items: flex-end;
   line-height: 1.15;
+}
+
+.profileLink {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.sheetUser {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
 }
 
 .personName {
@@ -157,8 +169,11 @@
     border-radius: 14px;
   }
 
-  .sheetUser {
+  .sheetText {
     align-items: flex-start;
+  }
+
+  .sheetUser {
     padding: 0.35rem 1rem 0.15rem;
     font-size: 0.95rem;
   }
@@ -172,7 +187,7 @@
   }
 }
 
-a.identity:hover .personName,
+a.profileLink:hover .personName,
 a.sheetUser:hover .personName {
   color: var(--accent);
 }

@@ -12,6 +12,7 @@ import {
   type AccountRow,
   type FriendsBoard,
 } from "@/lib/actions/friends";
+import { Avatar } from "./Avatar";
 import styles from "./FriendsPanel.module.css";
 
 type Props = {
@@ -306,7 +307,7 @@ function Person({
 
   return (
     <div className={styles.person}>
-      <span className={styles.avatar}>{shown.slice(0, 1).toUpperCase()}</span>
+      <Avatar src={account.avatar} name={shown} size={40} />
       <div className={styles.identity}>
         {editing ? (
           <input

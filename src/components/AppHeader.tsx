@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Brand } from "@/components/Brand";
 import { logoutAction } from "@/lib/actions/logout";
+import { Avatar } from "./Avatar";
 import styles from "./AppHeader.module.css";
 
 const LINKS = [
@@ -25,6 +26,8 @@ const MOM_LINKS = [
 type Props = {
   name: string;
   username: string | null;
+  /** Profile photo URL, or null for the initial. */
+  avatar?: string | null;
   /** Shows the link to the admin page. */
   isAdmin?: boolean;
   /** Mom mode: a short menu around the baby tracker. */
@@ -37,7 +40,13 @@ function isActive(href: string, pathname: string) {
   return pathname === href || pathname.startsWith(`${href}/`);
 }
 
-export function AppHeader({ name, username, isAdmin = false, momMode = false }: Props) {
+export function AppHeader({
+  name,
+  username,
+  avatar = null,
+  isAdmin = false,
+  momMode = false,
+}: Props) {
   const base = momMode ? MOM_LINKS : LINKS;
   const links = isAdmin ? [...base, { href: "/app/admin", label: "Админ" }] : base;
   const pathname = usePathname();
@@ -73,9 +82,12 @@ export function AppHeader({ name, username, isAdmin = false, momMode = false }: 
         ))}
       </nav>
       <div className={styles.user}>
-        <Link href="/app/settings" className={styles.identity} title="Профиль">
-          <span className={styles.personName}>{name}</span>
-          {username ? <span className={styles.nick}>@{username}</span> : null}
+        <Link href="/app/settings" className={styles.profileLink} title="Профиль">
+          <span className={styles.identity}>
+            <span className={styles.personName}>{name}</span>
+            {username ? <span className={styles.nick}>@{username}</span> : null}
+          </span>
+          <Avatar src={avatar} name={name} size={38} />
         </Link>
         <form action={logoutAction}>
           <button type="submit" className={styles.logout}>
@@ -112,9 +124,12 @@ export function AppHeader({ name, username, isAdmin = false, momMode = false }: 
             className={styles.sheetUser}
             onClick={() => setOpen(false)}
           >
-            <span className={styles.personName}>{name}</span>
-            {username ? <span className={styles.nick}>@{username}</span> : null}
-            <span className={styles.profileHint}>Профиль и настройки</span>
+            <Avatar src={avatar} name={name} size={44} />
+            <span className={styles.sheetText}>
+              <span className={styles.personName}>{name}</span>
+              {username ? <span className={styles.nick}>@{username}</span> : null}
+              <span className={styles.profileHint}>Профиль и настройки</span>
+            </span>
           </Link>
           <form action={logoutAction}>
             <button type="submit" className={styles.sheetLogout}>

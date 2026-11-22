@@ -3,12 +3,14 @@
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { requireUserId } from "@/lib/session";
+import { avatarSrc } from "@/lib/avatar";
 
 export type AccountRow = {
   id: string;
   name: string;
   username: string;
   alias: string | null;
+  avatar: string | null;
   relation: "none" | "friend" | "incoming" | "outgoing";
   friendshipId: string | null;
 };
@@ -23,6 +25,7 @@ export type FriendOption = {
   name: string;
   username: string;
   alias: string | null;
+  avatar: string | null;
 };
 
 export type FriendActionState = {
@@ -74,8 +77,8 @@ export async function getFriendsBoard(): Promise<FriendsBoard> {
       OR: [{ requesterId: userId }, { addresseeId: userId }],
     },
     include: {
-      requester: { select: { id: true, name: true, username: true } },
-      addressee: { select: { id: true, name: true, username: true } },
+      requester: { select: { id: true, name: true, username: true, image: true, avatarVersion: true } },
+      addressee: { select: { id: true, name: true, username: true, image: true, avatarVersion: true } },
     },
   });
 
@@ -90,6 +93,7 @@ export async function getFriendsBoard(): Promise<FriendsBoard> {
         name: person.name,
         username: person.username,
         alias,
+        avatar: avatarSrc(person),
         relation: relation.relation,
         friendshipId: relation.friendshipId,
       },
@@ -116,7 +120,7 @@ export async function searchAccounts(raw: string): Promise<AccountRow[]> {
       id: { not: userId },
       username: { contains: query, mode: "insensitive" },
     },
-    select: { id: true, name: true, username: true },
+    select: { id: true, name: true, username: true, image: true, avatarVersion: true },
     orderBy: { username: "asc" },
     take: 8,
   });
@@ -145,6 +149,7 @@ export async function searchAccounts(raw: string): Promise<AccountRow[]> {
         name: person.name,
         username: person.username,
         alias: relation.relation === "friend" && row ? viewerAlias(row, userId) : null,
+        avatar: avatarSrc(person),
         relation: relation.relation,
         friendshipId: relation.friendshipId,
       },
@@ -160,8 +165,8 @@ export async function listAcceptedFriends(): Promise<FriendOption[]> {
       OR: [{ requesterId: userId }, { addresseeId: userId }],
     },
     include: {
-      requester: { select: { id: true, name: true, username: true } },
-      addressee: { select: { id: true, name: true, username: true } },
+      requester: { select: { id: true, name: true, username: true, image: true, avatarVersion: true } },
+      addressee: { select: { id: true, name: true, username: true, image: true, avatarVersion: true } },
     },
   });
 
@@ -169,7 +174,15 @@ export async function listAcceptedFriends(): Promise<FriendOption[]> {
     const person = row.requesterId === userId ? row.addressee : row.requester;
     if (!person.username) return [];
     const alias = viewerAlias(row, userId);
-    return [{ id: person.id, name: alias || person.name, username: person.username, alias }];
+    return [
+      {
+        id: person.id,
+        name: alias || person.name,
+        username: person.username,
+        alias,
+        avatar: avatarSrc(person),
+      },
+    ];
   });
 }
 

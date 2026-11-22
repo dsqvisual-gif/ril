@@ -1,4 +1,5 @@
 import { AppHeader } from "@/components/AppHeader";
+import { avatarSrc } from "@/lib/avatar";
 import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import { NicknameGate } from "@/components/NicknameGate";
@@ -27,7 +28,7 @@ export default async function AppLayout({
   // A deleted account can still hold a valid session cookie.
   const exists = await prisma.user.findUnique({
     where: { id: user.id },
-    select: { id: true, theme: true, onboardedAt: true, momMode: true },
+    select: { id: true, theme: true, onboardedAt: true, momMode: true, image: true, avatarVersion: true },
   });
   if (!exists) redirect("/goodbye");
   const name = user.name ?? "";
@@ -41,6 +42,7 @@ export default async function AppLayout({
       <AppHeader
         name={name}
         username={user.username ?? null}
+        avatar={avatarSrc(exists)}
         isAdmin={isAdminEmail(user.email)}
         momMode={exists.momMode}
       />

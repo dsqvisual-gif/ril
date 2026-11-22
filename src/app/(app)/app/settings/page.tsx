@@ -11,6 +11,8 @@ import { replayOnboarding } from "@/lib/actions/onboarding";
 import { listReminders } from "@/lib/actions/reminders";
 import { DigestSettings, RemindersSettings } from "@/components/settings/RemindersSettings";
 import { MomModeSwitch } from "@/components/settings/MomModeSwitch";
+import { AvatarSettings } from "@/components/settings/AvatarSettings";
+import { avatarSrc } from "@/lib/avatar";
 import styles from "@/components/settings/Settings.module.css";
 
 export const metadata: Metadata = {
@@ -32,6 +34,9 @@ export default async function SettingsPage() {
       digestEnabled: true,
       momMode: true,
       healthEmails: true,
+      id: true,
+      image: true,
+      avatarVersion: true,
     },
   });
   if (!user) notFound();
@@ -42,6 +47,7 @@ export default async function SettingsPage() {
       <h1 className={styles.title}>Профиль</h1>
 
       <div className={styles.card}>
+        <AvatarSettings name={user.name} src={avatarSrc(user)} uploaded={user.avatarVersion > 0} />
         <dl className={styles.list}>
           <div>
             <dt>Имя</dt>

@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import type { FriendOption } from "@/lib/actions/friends";
+import { Avatar } from "../Avatar";
 import styles from "./FriendPicker.module.css";
 
 type Props = {
@@ -70,9 +71,7 @@ export function FriendPicker({ friends, selected, onToggle, onDone }: Props) {
                 aria-pressed={on}
                 onClick={() => onToggle(friend.id)}
               >
-                <span className={styles.avatar} aria-hidden>
-                  {label.replace(/^@/, "").slice(0, 1).toUpperCase()}
-                </span>
+                <Avatar src={friend.avatar} name={label} size={34} />
                 <span className={styles.who}>
                   <span className={styles.name}>{label}</span>
                   <span className={styles.nick}>@{friend.username}</span>

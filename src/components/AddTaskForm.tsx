@@ -20,7 +20,11 @@ export function AddTaskForm({ date, friends, onCreate }: Props) {
 
   if (!open) {
     return (
-      <button type="button" className={styles.addBtn} onClick={() => setOpen(true)}>
+      <button
+        type="button"
+        className={styles.addBtn}
+        onClick={() => setOpen(true)}
+      >
         <span className={styles.plus}>+</span>
         Новое дело
       </button>
@@ -78,7 +82,9 @@ export function TaskEditor({
 
   function toggleFriend(friendId: string) {
     setFriendIds((prev) =>
-      prev.includes(friendId) ? prev.filter((item) => item !== friendId) : [...prev, friendId],
+      prev.includes(friendId)
+        ? prev.filter((item) => item !== friendId)
+        : [...prev, friendId],
     );
   }
 
@@ -120,32 +126,113 @@ export function TaskEditor({
         />
       </div>
 
-      <div className={styles.extras}>
-        <button
-          type="button"
-          className={friendIds.length > 0 || pickingFriends ? styles.extraOn : styles.extra}
-          aria-expanded={pickingFriends}
-          onClick={() => setPickingFriends((value) => !value)}
-        >
-          <span aria-hidden>👥</span>{" "}
-          {friendIds.length > 0 ? `С друзьями · ${friendIds.length}` : "Запланировать с другом"}
-        </button>
-        <button
-          type="button"
-          className={withList ? styles.extraOn : styles.extra}
-          aria-pressed={withList}
-          onClick={() => setWithList((value) => !value)}
-        >
-          <span aria-hidden>☑</span> Список
-        </button>
-        <button
-          type="button"
-          className={withNote ? styles.extraOn : styles.extra}
-          aria-pressed={withNote}
-          onClick={() => setWithNote((value) => !value)}
-        >
-          <span aria-hidden>✎</span> Заметка
-        </button>
+      {withDate ? (
+        <div className="field">
+          <label htmlFor={`${id}-date`}>День</label>
+          <input
+            id={`${id}-date`}
+            type="date"
+            value={date}
+            onChange={(e) => setDate(e.target.value || date)}
+            required
+          />
+        </div>
+      ) : null}
+
+      <div className={styles.priority}>
+        <span className={styles.groupLabel}>Приоритет</span>
+        <div className={styles.flags}>
+          <button
+            type="button"
+            className={important ? styles.importantOn : styles.flag}
+            aria-pressed={important}
+            onClick={() => setImportant((value) => !value)}
+          >
+            <span className={styles.dotWarn} aria-hidden />
+            Важно
+          </button>
+          <button
+            type="button"
+            className={urgent ? styles.urgentOn : styles.flag}
+            aria-pressed={urgent}
+            onClick={() => setUrgent((value) => !value)}
+          >
+            <span className={styles.dotDanger} aria-hidden />
+            Срочно
+          </button>
+        </div>
+      </div>
+
+      <label className={styles.toggle}>
+        <input
+          type="checkbox"
+          checked={withTime}
+          onChange={(e) => setWithTime(e.target.checked)}
+        />
+        Указать время
+      </label>
+
+      {withTime ? (
+        <div className="field">
+          <label htmlFor={`${id}-time`}>Время</label>
+          <input
+            id={`${id}-time`}
+            type="time"
+            value={time}
+            onChange={(e) => setTime(e.target.value)}
+          />
+        </div>
+      ) : null}
+
+      <div className={styles.addGroup}>
+        <span className={styles.groupLabel}>Добавить к делу</span>
+        <div className={styles.extras}>
+          <button
+            type="button"
+            className={
+              friendIds.length > 0 || pickingFriends
+                ? styles.extraOn
+                : styles.extra
+            }
+            aria-expanded={pickingFriends}
+            onClick={() => setPickingFriends((value) => !value)}
+          >
+            <span className={styles.extraIcon} aria-hidden>
+              👥
+            </span>
+            <span>
+              {friendIds.length > 0
+                ? `С друзьями · ${friendIds.length}`
+                : "С другом"}
+            </span>
+          </button>
+          <button
+            type="button"
+            className={withList ? styles.extraOn : styles.extra}
+            aria-pressed={withList}
+            onClick={() => setWithList((value) => !value)}
+          >
+            <span className={styles.extraIcon} aria-hidden>
+              ☑️
+            </span>
+            <span>
+              {withList && items.length > 0
+                ? `Список · ${items.length}`
+                : "Список"}
+            </span>
+          </button>
+          <button
+            type="button"
+            className={withNote ? styles.extraOn : styles.extra}
+            aria-pressed={withNote}
+            onClick={() => setWithNote((value) => !value)}
+          >
+            <span className={styles.extraIcon} aria-hidden>
+              📝
+            </span>
+            <span>Заметка</span>
+          </button>
+        </div>
       </div>
 
       {pickingFriends ? (
@@ -196,64 +283,15 @@ export function TaskEditor({
         </div>
       ) : null}
 
-      {withDate ? (
-        <div className="field">
-          <label htmlFor={`${id}-date`}>День</label>
-          <input
-            id={`${id}-date`}
-            type="date"
-            value={date}
-            onChange={(e) => setDate(e.target.value || date)}
-            required
-          />
-        </div>
-      ) : null}
-
-      <div className={styles.flags}>
-        <button
-          type="button"
-          className={important ? styles.importantOn : styles.flag}
-          aria-pressed={important}
-          onClick={() => setImportant((value) => !value)}
-        >
-          Важно
-        </button>
-        <button
-          type="button"
-          className={urgent ? styles.urgentOn : styles.flag}
-          aria-pressed={urgent}
-          onClick={() => setUrgent((value) => !value)}
-        >
-          Срочно
-        </button>
-      </div>
-
-      <label className={styles.toggle}>
-        <input
-          type="checkbox"
-          checked={withTime}
-          onChange={(e) => setWithTime(e.target.checked)}
-        />
-        Указать время
-      </label>
-
-      {withTime ? (
-        <div className="field">
-          <label htmlFor={`${id}-time`}>Время</label>
-          <input
-            id={`${id}-time`}
-            type="time"
-            value={time}
-            onChange={(e) => setTime(e.target.value)}
-          />
-        </div>
-      ) : null}
-
-
       {error ? <p className="form-error">{error}</p> : null}
 
       <div className={styles.actions}>
-        <button type="button" className="btn btn-ghost" onClick={onCancel} disabled={pending}>
+        <button
+          type="button"
+          className="btn btn-ghost"
+          onClick={onCancel}
+          disabled={pending}
+        >
           Отмена
         </button>
         <button type="submit" className="btn btn-primary" disabled={pending}>
