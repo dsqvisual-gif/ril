@@ -8,6 +8,7 @@ import {
   deleteReminder,
   sendDigestNow,
   setDigest,
+  setHealthEmails,
   updateReminder,
   type ReminderDTO,
   type ReminderInput,
@@ -28,8 +29,26 @@ type Props = {
   initialReminders: ReminderDTO[];
 };
 
-export function DigestSettings({ digestEnabled }: { digestEnabled: boolean }) {
+export function DigestSettings({
+  digestEnabled,
+  healthEmails,
+  momMode,
+}: {
+  digestEnabled: boolean;
+  healthEmails: boolean;
+  momMode: boolean;
+}) {
   const [enabled, setEnabled] = useState(digestEnabled);
+  const [health, setHealth] = useState(healthEmails);
+
+  async function toggleHealth(next: boolean) {
+    setHealth(next);
+    const result = await setHealthEmails(next);
+    if (!result.ok) {
+      setHealth(!next);
+      setNote(result.error);
+    }
+  }
   const [note, setNote] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -66,6 +85,21 @@ export function DigestSettings({ digestEnabled }: { digestEnabled: boolean }) {
           onChange={(e) => void toggle(e.target.checked)}
         />
       </label>
+      {momMode ? (
+        <label className={styles.switchRow}>
+          <span>
+            <b>Напоминания о прививках и визитах</b>
+            <small>Письмо за несколько дней до записи в разделе «Здоровье».</small>
+          </span>
+          <input
+            type="checkbox"
+            role="switch"
+            className={styles.switch}
+            checked={health}
+            onChange={(e) => void toggleHealth(e.target.checked)}
+          />
+        </label>
+      ) : null}
       <button type="button" className={styles.linkBtn} onClick={() => void test()} disabled={busy}>
         {busy ? "Отправляю…" : "Прислать пробное письмо сейчас"}
       </button>

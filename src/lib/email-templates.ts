@@ -86,3 +86,28 @@ function plural(n: number): string {
   if (mod10 >= 2 && mod10 <= 4 && (mod100 < 12 || mod100 > 14)) return "дела";
   return "дел";
 }
+
+/** A vaccination or doctor visit coming up. */
+export function healthEmail(
+  to: string,
+  childName: string,
+  kind: "vaccine" | "visit",
+  title: string,
+  date: string,
+  when: string,
+): EmailMessage {
+  const day = format(fromDateKey(date), "d MMMM, EEEE", { locale: ru });
+  const what = kind === "vaccine" ? "Прививка" : "Визит к врачу";
+  const headline = `${childName}: ${title} — ${when}`;
+  const inner = `
+    <p style="margin:26px 0 6px;font-size:22px;font-weight:800">${e(headline)}</p>
+    <p style="margin:0;color:#5a6280">${e(what)} · <b style="color:#141b3a">${e(day)}</b></p>
+    <p style="margin:14px 0 0;color:#5a6280">После визита отметьте его выполненным в разделе «Здоровье».</p>
+    ${button(`${SITE_URL}/app/baby/health`, "Открыть «Здоровье»")}`;
+  return {
+    to,
+    subject: headline,
+    html: letter(inner, footer("напоминания о прививках и визитах")),
+    text: `${headline}\n${what}: ${day}.\n${SITE_URL}/app/baby/health` + textFooter(),
+  };
+}

@@ -8,6 +8,8 @@ import { ActivityPing } from "@/components/ActivityPing";
 import { InstallPrompt } from "@/components/pwa/InstallPrompt";
 import { ThemeSync } from "@/components/theme/ThemeSync";
 import { Onboarding } from "@/components/onboarding/Onboarding";
+import { ChildInvites } from "@/components/baby/ChildInvites";
+import { listChildInvites } from "@/lib/actions/baby-care";
 import { prisma } from "@/lib/prisma";
 
 export default async function AppLayout({
@@ -29,6 +31,7 @@ export default async function AppLayout({
   });
   if (!exists) redirect("/goodbye");
   const name = user.name ?? "";
+  const childInvites = await listChildInvites();
 
   return (
     <div className={exists.momMode ? "app-shell mom-mode" : "app-shell"}>
@@ -42,6 +45,7 @@ export default async function AppLayout({
         momMode={exists.momMode}
       />
       {user.username && !exists.onboardedAt ? <Onboarding /> : null}
+      {childInvites.length > 0 ? <ChildInvites invites={childInvites} /> : null}
       {user.username ? (
         children
       ) : (

@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { sendEmail } from "@/lib/email";
-import { digestEmail, reminderEmail, type DigestTask } from "@/lib/email-templates";
+import { digestEmail, healthEmail, reminderEmail, type DigestTask } from "@/lib/email-templates";
 import {
   catchUp,
   describeIn,
@@ -11,7 +11,13 @@ import {
 import { fromDateKey } from "@/lib/dates";
 import { differenceInCalendarDays } from "date-fns";
 
-export type DailyReport = { digests: number; reminderEmails: number; plannerTasks: number; failed: number };
+export type DailyReport = {
+  digests: number;
+  reminderEmails: number;
+  plannerTasks: number;
+  healthEmails: number;
+  failed: number;
+};
 
 /** Open tasks for a user's day, urgent and important first. */
 export async function digestTasks(userId: string, today: string): Promise<DigestTask[]> {
@@ -76,6 +82,43 @@ async function processReminders(now: Date, report: DailyReport) {
   }
 }
 
+async function processHealth(now: Date, report: DailyReport) {
+  const items = await prisma.babyHealth.findMany({
+    where: { done: false },
+    include: {
+      child: {
+        select: {
+          name: true,
+          user: { select: { email: true, timeZone: true, healthEmails: true } },
+          access: {
+            where: { status: "active" },
+            select: { user: { select: { email: true, healthEmails: true } } },
+          },
+        },
+      },
+    },
+  });
+  for (const item of items) {
+    try {
+      const today = todayIn(item.child.user.timeZone, now);
+      const daysLeft = differenceInCalendarDays(fromDateKey(item.date), fromDateKey(today));
+      if (daysLeft < 0 || daysLeft > item.remindDaysBefore || item.lastNotifiedFor === item.date) continue;
+      const kind = item.kind === "vaccine" ? "vaccine" : "visit";
+      const recipients = [item.child.user, ...item.child.access.map((a) => a.user)]
+        .filter((u) => u.healthEmails)
+        .map((u) => u.email);
+      for (const to of new Set(recipients)) {
+        await sendEmail(healthEmail(to, item.child.name, kind, item.title, item.date, describeIn(today, item.date)));
+        report.healthEmails += 1;
+      }
+      await prisma.babyHealth.update({ where: { id: item.id }, data: { lastNotifiedFor: item.date } });
+    } catch (error) {
+      report.failed += 1;
+      console.error("health reminder failed", item.id, error);
+    }
+  }
+}
+
 async function processDigests(now: Date, report: DailyReport) {
   const users = await prisma.user.findMany({
     where: { digestEnabled: true },
@@ -99,8 +142,9 @@ async function processDigests(now: Date, report: DailyReport) {
 
 /** Runs once a morning: repeating reminders first (they may add today's tasks), then digests. */
 export async function runDailyJob(now = new Date()): Promise<DailyReport> {
-  const report: DailyReport = { digests: 0, reminderEmails: 0, plannerTasks: 0, failed: 0 };
+  const report: DailyReport = { digests: 0, reminderEmails: 0, plannerTasks: 0, healthEmails: 0, failed: 0 };
   await processReminders(now, report);
+  await processHealth(now, report);
   await processDigests(now, report);
   return report;
 }

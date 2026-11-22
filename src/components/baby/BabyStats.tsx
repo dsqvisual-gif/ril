@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState, type FormEvent } from "react";
+import Link from "next/link";
 import { format } from "date-fns";
 import { ru } from "date-fns/locale";
 import {
@@ -23,7 +24,7 @@ const DAY = 86_400_000;
 const NIGHT_FROM = 20;
 const NIGHT_TO = 8;
 
-type DayStat = {
+export type DayStat = {
   start: number;
   daySleep: number;
   nightSleep: number;
@@ -37,7 +38,7 @@ function startOfLocalDay(t: number): number {
   return new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
 }
 
-function buildStats(events: BabyEventDTO[], days: number, now: number): DayStat[] {
+export function buildStats(events: BabyEventDTO[], days: number, now: number): DayStat[] {
   const first = startOfLocalDay(now) - (days - 1) * DAY;
   const stats: DayStat[] = Array.from({ length: days }, (_, i) => ({
     start: first + i * DAY,
@@ -141,6 +142,15 @@ function StatsBoard({ child }: { child: ChildDTO }) {
 
   return (
     <>
+      <div className={styles.statLinks}>
+        <Link href="/app/baby/report" className={styles.softBtn}>
+          📄 Отчёт для педиатра
+        </Link>
+        <Link href="/app/baby/health" className={styles.softBtn}>
+          💉 Прививки и визиты
+        </Link>
+      </div>
+
       <div className={styles.headline}>
         <h1 className={styles.childName}>Статистика</h1>
         <div className={styles.quickMl}>

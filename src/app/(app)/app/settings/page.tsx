@@ -31,6 +31,7 @@ export default async function SettingsPage() {
       theme: true,
       digestEnabled: true,
       momMode: true,
+      healthEmails: true,
     },
   });
   if (!user) notFound();
@@ -84,7 +85,11 @@ export default async function SettingsPage() {
         <ThemePicker initial={isThemeId(user.theme) ? user.theme : DEFAULT_THEME} />
       </div>
 
-      <DigestSettings digestEnabled={user.digestEnabled} />
+      <DigestSettings
+        digestEnabled={user.digestEnabled}
+        healthEmails={user.healthEmails}
+        momMode={user.momMode}
+      />
 
       <RemindersSettings initialReminders={reminders} />
 

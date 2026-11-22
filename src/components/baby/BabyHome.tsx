@@ -25,6 +25,9 @@ import {
 import { todayKey } from "@/lib/dates";
 import { AchievementToast } from "../AchievementToast";
 import { ChildPicker } from "./ChildPicker";
+import { NightMode } from "./NightMode";
+import { rhythm } from "./rhythm";
+import { UpcomingHealth } from "./UpcomingHealth";
 import styles from "./Baby.module.css";
 
 const DAY = 86_400_000;
@@ -150,6 +153,25 @@ function ChildDay({ child }: { child: ChildDTO }) {
   }, [dayEvents, day, now]);
 
   const isToday = isSameDay(new Date(day), new Date(now));
+  const [night, setNight] = useState(false);
+  const tips = useMemo(() => rhythm(events, now), [events, now]);
+  const shared = child.people.length > 1;
+  const nameOf = (id: string | null) => child.people.find((p) => p.id === id)?.name ?? null;
+
+  const startSleep = () =>
+    act("sleep", async () => merge(unwrap(await startTimer(child.id, "sleep"))), "Не удалось начать сон");
+  const stopSleep = (id: string) =>
+    act("sleep", async () => merge([unwrap(await stopTimer(id))]), "Не удалось остановить");
+  const startFeed = () =>
+    act("feed", async () => merge(unwrap(await startTimer(child.id, "feed"))), "Не удалось начать кормление");
+  const stopFeed = (id: string) =>
+    act("feed", async () => merge([unwrap(await stopTimer(id))]), "Не удалось остановить");
+  const diaperNow = (data: DiaperData) =>
+    act(
+      "diaper",
+      async () => merge([unwrap(await addEvent(child.id, { kind: "diaper", startedAt: new Date().toISOString(), data }))]),
+      "Не удалось записать",
+    );
   const verbs = child.sex === "girl" ? { slept: "Уснула", woke: "Проснулась" } : { slept: "Уснул", woke: "Проснулся" };
 
   return (
@@ -160,6 +182,27 @@ function ChildDay({ child }: { child: ChildDTO }) {
         </h1>
         <span className={styles.age}>{childAge(child.birthDate, todayKey())}</span>
       </div>
+
+      <div className={styles.toolsRow}>
+        <button type="button" className={styles.nightBtn} onClick={() => setNight(true)}>
+          🌙 Ночной режим
+        </button>
+        {shared ? (
+          <span className={styles.sharedNote}>
+            Отмечаете вместе: {child.people.map((p) => p.name).join(", ")}
+          </span>
+        ) : null}
+      </div>
+
+      {tips.length > 0 ? (
+        <div className={styles.rhythm}>
+          {tips.map((tip) => (
+            <p key={tip.text} className={tip.now ? styles.rhythmNow : undefined}>
+              {tip.icon} {tip.text}
+            </p>
+          ))}
+        </div>
+      ) : null}
 
       <div className={styles.now}>
         {/* ---------- sleep ---------- */}
@@ -276,6 +319,8 @@ function ChildDay({ child }: { child: ChildDTO }) {
         </article>
       </div>
 
+      <UpcomingHealth childId={child.id} />
+
       {/* ---------- the day ---------- */}
       <div className={styles.dayHead}>
         <button type="button" className={styles.navBtn} onClick={() => setDay((d) => d - DAY)} aria-label="Предыдущий день">
@@ -342,7 +387,10 @@ function ChildDay({ child }: { child: ChildDTO }) {
                 <span className={styles.eventIcon}>{icon(e)}</span>
                 <span className={styles.eventBody}>
                   <b>{title(e)}</b>
-                  <small>{details(e, now)}</small>
+                  <small>
+                    {details(e, now)}
+                    {shared && nameOf(e.byUserId) ? ` · ${nameOf(e.byUserId)}` : ""}
+                  </small>
                 </span>
                 <span className={styles.eventTime}>{format(new Date(e.startedAt), "HH:mm")}</span>
               </button>
@@ -371,6 +419,23 @@ function ChildDay({ child }: { child: ChildDTO }) {
           + Добавить запись задним числом
         </button>
       )}
+
+      {night ? (
+        <NightMode
+          childName={child.name}
+          girl={child.sex === "girl"}
+          now={now}
+          runningSleep={runningSleep}
+          runningFeed={runningFeed}
+          lastSleepEnd={lastSleep ? eventEnd(lastSleep, now) : null}
+          lastFeedStart={lastFeed ? new Date(lastFeed.startedAt).getTime() : null}
+          busy={busy}
+          onSleep={() => void (runningSleep ? stopSleep(runningSleep.id) : startSleep())}
+          onFeed={() => void (runningFeed ? stopFeed(runningFeed.id) : startFeed())}
+          onDiaper={(data) => void diaperNow(data)}
+          onClose={() => setNight(false)}
+        />
+      ) : null}
 
       {toast ? <AchievementToast kind="error" title={toast} onClose={() => setToast(null)} /> : null}
     </>

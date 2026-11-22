@@ -110,7 +110,14 @@ export async function deleteReminder(id: string): Promise<ActionResult<void>> {
   return toResult(() => deleteInner(id));
 }
 
-// ---------- morning digest ----------
+// ---------- morning digest and health emails ----------
+
+export async function setHealthEmails(enabled: boolean): Promise<ActionResult<void>> {
+  return toResult(async () => {
+    const userId = await requireUserId();
+    await prisma.user.update({ where: { id: userId }, data: { healthEmails: enabled } });
+  });
+}
 
 export async function setDigest(enabled: boolean): Promise<ActionResult<void>> {
   return toResult(async () => {

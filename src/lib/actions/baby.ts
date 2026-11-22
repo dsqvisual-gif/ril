@@ -20,7 +20,16 @@ import {
 
 // ---------- types ----------
 
-export type ChildDTO = { id: string; name: string; birthDate: string; sex: "girl" | "boy" | null };
+export type ChildDTO = {
+  id: string;
+  name: string;
+  birthDate: string;
+  sex: "girl" | "boy" | null;
+  /** The viewer added this child (may edit and share it). */
+  isOwner: boolean;
+  /** Everyone tracking this child, to name who made a record. */
+  people: { id: string; name: string }[];
+};
 
 export type BabyEventDTO = {
   id: string;
@@ -29,6 +38,7 @@ export type BabyEventDTO = {
   endedAt: string | null;
   data: FeedData | DiaperData | null;
   note: string | null;
+  byUserId: string | null;
 };
 
 export type GrowthDTO = {
@@ -72,15 +82,28 @@ const KINDS: BabyEventKind[] = ["sleep", "feed", "diaper"];
 
 // ---------- helpers ----------
 
+/** Children a user may see and track: their own and those shared with them. */
+function reachable(userId: string) {
+  return { OR: [{ userId }, { access: { some: { userId, status: "active" } } }] };
+}
+
+/** Only the parent who added the child may edit it, share it or delete it. */
 async function ownChild(userId: string, childId: string) {
   const child = await prisma.child.findFirst({ where: { id: childId, userId }, select: { id: true } });
+  if (!child) throw new UserError("Это может только тот, кто добавил малыша");
+  return child;
+}
+
+/** The child is the user's or shared with them. */
+async function seeChild(userId: string, childId: string) {
+  const child = await prisma.child.findFirst({ where: { id: childId, ...reachable(userId) }, select: { id: true } });
   if (!child) throw new UserError("Ребёнок не найден");
   return child;
 }
 
 async function ownEvent(userId: string, eventId: string) {
   const event = await prisma.babyEvent.findFirst({
-    where: { id: eventId, child: { userId } },
+    where: { id: eventId, child: reachable(userId) },
     select: { id: true, childId: true, kind: true, startedAt: true, endedAt: true },
   });
   if (!event) throw new UserError("Запись не найдена");
@@ -135,6 +158,7 @@ function eventDTO(e: {
   endedAt: Date | null;
   data: Prisma.JsonValue;
   note: string | null;
+  byUserId?: string | null;
 }): BabyEventDTO {
   return {
     id: e.id,
@@ -143,6 +167,7 @@ function eventDTO(e: {
     endedAt: e.endedAt ? e.endedAt.toISOString() : null,
     data: (e.data as FeedData | DiaperData | null) ?? null,
     note: e.note,
+    byUserId: e.byUserId ?? null,
   };
 }
 
@@ -186,12 +211,24 @@ export async function setMomMode(enabled: boolean): Promise<ActionResult<void>> 
 
 export async function listChildren(): Promise<ChildDTO[]> {
   const userId = await requireUserId();
-  const rows = await prisma.child.findMany({ where: { userId }, orderBy: { createdAt: "asc" } });
+  const rows = await prisma.child.findMany({
+    where: reachable(userId),
+    orderBy: { createdAt: "asc" },
+    include: {
+      user: { select: { id: true, name: true } },
+      access: {
+        where: { status: "active" },
+        include: { user: { select: { id: true, name: true } } },
+      },
+    },
+  });
   return rows.map((c) => ({
     id: c.id,
     name: c.name,
     birthDate: c.birthDate,
     sex: c.sex === "girl" || c.sex === "boy" ? c.sex : null,
+    isOwner: c.userId === userId,
+    people: [c.user, ...c.access.map((a) => a.user)],
   }));
 }
 
@@ -213,14 +250,14 @@ export async function saveChild(
     const data = cleanChild(input);
     if (id) {
       await ownChild(userId, id);
-      const c = await prisma.child.update({ where: { id }, data });
-      return { id: c.id, name: c.name, birthDate: c.birthDate, sex: data.sex };
+      await prisma.child.update({ where: { id }, data });
+      return (await listChildren()).find((c) => c.id === id)!;
     }
     if ((await prisma.child.count({ where: { userId } })) >= CHILDREN_MAX) {
       throw new UserError(`Можно добавить до ${CHILDREN_MAX} детей`);
     }
     const c = await prisma.child.create({ data: { ...data, userId } });
-    return { id: c.id, name: c.name, birthDate: c.birthDate, sex: data.sex };
+    return (await listChildren()).find((x) => x.id === c.id)!;
   });
 }
 
@@ -242,7 +279,7 @@ export async function listEvents(
 ): Promise<ActionResult<BabyEventDTO[]>> {
   return toResult(async () => {
     const userId = await requireUserId();
-    await ownChild(userId, childId);
+    await seeChild(userId, childId);
     const from = new Date(fromIso);
     const to = new Date(toIso);
     if (Number.isNaN(from.getTime()) || Number.isNaN(to.getTime())) throw new UserError("Неверный период");
@@ -267,7 +304,7 @@ export async function startTimer(
 ): Promise<ActionResult<BabyEventDTO[]>> {
   return toResult(async () => {
     const userId = await requireUserId();
-    await ownChild(userId, childId);
+    await seeChild(userId, childId);
     const now = new Date();
     const stopped = await prisma.babyEvent.findMany({
       where: { childId, kind, endedAt: null },
@@ -282,7 +319,13 @@ export async function startTimer(
     const other = kind === "sleep" ? "feed" : "sleep";
     await prisma.babyEvent.updateMany({ where: { childId, kind: other, endedAt: null }, data: { endedAt: now } });
     const created = await prisma.babyEvent.create({
-      data: { childId, kind, startedAt: now, data: kind === "feed" && data ? cleanData("feed", data) : undefined },
+      data: {
+        childId,
+        kind,
+        startedAt: now,
+        byUserId: userId,
+        data: kind === "feed" && data ? cleanData("feed", data) : undefined,
+      },
     });
     const touched = await prisma.babyEvent.findMany({
       where: { id: { in: [created.id, ...stopped.map((e) => e.id)] } },
@@ -307,7 +350,7 @@ export async function stopTimer(eventId: string): Promise<ActionResult<BabyEvent
 export async function addEvent(childId: string, input: EventInput): Promise<ActionResult<BabyEventDTO>> {
   return toResult(async () => {
     const userId = await requireUserId();
-    await ownChild(userId, childId);
+    await seeChild(userId, childId);
     if (!KINDS.includes(input.kind)) throw new UserError("Неизвестный тип записи");
     const startedAt = parseTime(input.startedAt, "Начало");
     const endedAt = input.endedAt ? parseTime(input.endedAt, "Конец") : null;
@@ -321,6 +364,7 @@ export async function addEvent(childId: string, input: EventInput): Promise<Acti
         endedAt: input.kind === "diaper" ? startedAt : endedAt ?? startedAt,
         data: cleanData(input.kind, input.data),
         note: cleanNote(input.note),
+        byUserId: userId,
       },
     });
     return eventDTO(created);
@@ -362,7 +406,7 @@ export async function deleteEvent(eventId: string): Promise<ActionResult<void>> 
 export async function listGrowth(childId: string): Promise<ActionResult<GrowthDTO[]>> {
   return toResult(async () => {
     const userId = await requireUserId();
-    await ownChild(userId, childId);
+    await seeChild(userId, childId);
     const rows = await prisma.growthRecord.findMany({ where: { childId }, orderBy: { date: "asc" } });
     return rows.map((g) => ({ id: g.id, date: g.date, weightG: g.weightG, heightCm: g.heightCm, headCm: g.headCm }));
   });
@@ -374,7 +418,7 @@ export async function addGrowth(
 ): Promise<ActionResult<GrowthDTO>> {
   return toResult(async () => {
     const userId = await requireUserId();
-    await ownChild(userId, childId);
+    await seeChild(userId, childId);
     if (!isDateKey(input.date)) throw new UserError("Укажите дату");
     const num = (v: unknown, min: number, max: number, label: string) => {
       if (v === null || v === undefined || v === "") return null;
@@ -404,7 +448,7 @@ export async function addGrowth(
 export async function deleteGrowth(id: string): Promise<ActionResult<void>> {
   return toResult(async () => {
     const userId = await requireUserId();
-    const row = await prisma.growthRecord.findFirst({ where: { id, child: { userId } }, select: { id: true } });
+    const row = await prisma.growthRecord.findFirst({ where: { id, child: reachable(userId) }, select: { id: true } });
     if (!row) throw new UserError("Запись не найдена");
     await prisma.growthRecord.delete({ where: { id } });
   });
@@ -417,7 +461,7 @@ const foodInclude = { tries: { orderBy: { date: "asc" as const } } };
 export async function listFoods(childId: string): Promise<ActionResult<FoodDTO[]>> {
   return toResult(async () => {
     const userId = await requireUserId();
-    await ownChild(userId, childId);
+    await seeChild(userId, childId);
     const rows = await prisma.foodIntro.findMany({
       where: { childId },
       include: foodInclude,
@@ -433,7 +477,7 @@ export async function addFood(
 ): Promise<ActionResult<FoodDTO>> {
   return toResult(async () => {
     const userId = await requireUserId();
-    await ownChild(userId, childId);
+    await seeChild(userId, childId);
     const product = String(input.product ?? "").trim();
     if (!product) throw new UserError("Какой продукт?");
     if (product.length > 40) throw new UserError("Название продукта не длиннее 40 символов");
@@ -462,7 +506,7 @@ export async function addFood(
 
 async function ownFood(userId: string, foodId: string) {
   const food = await prisma.foodIntro.findFirst({
-    where: { id: foodId, child: { userId } },
+    where: { id: foodId, child: reachable(userId) },
     select: { id: true, status: true },
   });
   if (!food) throw new UserError("Продукт не найден");
@@ -521,7 +565,7 @@ export async function deleteFoodTry(tryId: string): Promise<ActionResult<FoodDTO
   return toResult(async () => {
     const userId = await requireUserId();
     const row = await prisma.foodTry.findFirst({
-      where: { id: tryId, food: { child: { userId } } },
+      where: { id: tryId, food: { child: reachable(userId) } },
       select: { id: true, foodId: true },
     });
     if (!row) throw new UserError("Запись не найдена");

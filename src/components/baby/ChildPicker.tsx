@@ -5,6 +5,8 @@ import Image from "next/image";
 import { deleteChild, saveChild, type ChildDTO } from "@/lib/actions/baby";
 import { errorText, unwrap } from "@/lib/action-result";
 import { todayKey } from "@/lib/dates";
+import { leaveChild } from "@/lib/actions/baby-care";
+import { Caregivers } from "./Caregivers";
 import styles from "./Baby.module.css";
 
 type Props = {
@@ -19,8 +21,12 @@ type Props = {
 export function ChildPicker({ kids, childId, onChange, onSaved, onDeleted }: Props) {
   const [form, setForm] = useState<"new" | string | null>(kids.length === 0 ? "new" : null);
   const editing = form && form !== "new" ? kids.find((c) => c.id === form) : undefined;
+  const [infoOpen, setInfoOpen] = useState(false);
+  const current = kids.find((c) => c.id === childId);
 
-  if (kids.length === 0 || form) {
+  if (editing && !editing.isOwner) setForm(null);
+
+  if (kids.length === 0 || (form && (form === "new" || editing?.isOwner))) {
     return (
       <ChildForm
         first={kids.length === 0}
@@ -49,7 +55,11 @@ export function ChildPicker({ kids, childId, onChange, onSaved, onDeleted }: Pro
           key={c.id}
           type="button"
           className={c.id === childId ? styles.childOn : styles.child}
-          onClick={() => (c.id === childId ? setForm(c.id) : onChange(c.id))}
+          onClick={() => {
+            if (c.id !== childId) return onChange(c.id);
+            if (c.isOwner) setForm(c.id);
+            else setInfoOpen((v) => !v);
+          }}
           title={c.id === childId ? "Изменить данные" : undefined}
         >
           {c.name}
@@ -58,6 +68,35 @@ export function ChildPicker({ kids, childId, onChange, onSaved, onDeleted }: Pro
       ))}
       <button type="button" className={styles.child} onClick={() => setForm("new")}>
         + ребёнок
+      </button>
+      {infoOpen && current && !current.isOwner ? (
+        <SharedInfo
+          child={current}
+          onLeft={() => {
+            setInfoOpen(false);
+            onDeleted(current.id);
+          }}
+        />
+      ) : null}
+    </div>
+  );
+}
+
+/** For a caregiver: whose child this is, and a way to stop tracking it. */
+function SharedInfo({ child, onLeft }: { child: ChildDTO; onLeft: () => void }) {
+  const owner = child.people[0]?.name ?? "родитель";
+  async function leave() {
+    if (!window.confirm(`Перестать отмечать ${child.name}? Записи останутся у ${owner}.`)) return;
+    if ((await leaveChild(child.id)).ok) onLeft();
+  }
+  return (
+    <div className={styles.sharedInfo}>
+      <p>
+        Малыша ведёт <b>{owner}</b>, вы отмечаете вместе. Имя и дату рождения меняет только{" "}
+        {owner}.
+      </p>
+      <button type="button" className={styles.dangerLink} onClick={() => void leave()}>
+        Выйти из доступа
       </button>
     </div>
   );
@@ -135,6 +174,7 @@ function ChildForm({
           Мальчик
         </button>
       </div>
+      {initial ? <Caregivers childId={initial.id} /> : null}
       {error ? <p className="form-error">{error}</p> : null}
       <div className={styles.formActions}>
         {onDeleted ? (

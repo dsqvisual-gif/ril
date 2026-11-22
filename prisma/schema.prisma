@@ -37,7 +37,10 @@ model User {
   reminders     Reminder[]
   /// "Mom mode": a baby tracker next to the planner, with its own look.
   momMode       Boolean           @default(false)
+  /// Emails about upcoming vaccinations and doctor visits.
+  healthEmails  Boolean           @default(true)
   children      Child[]
+  childAccess   ChildAccess[]
   createdAt    DateTime            @default(now())
   tasks        Task[]
   achievements AchievementUnlock[]
@@ -278,6 +281,8 @@ model Child {
   events    BabyEvent[]
   growth    GrowthRecord[]
   foods     FoodIntro[]
+  access    ChildAccess[]
+  health    BabyHealth[]
 
   @@index([userId])
 }
@@ -293,6 +298,8 @@ model BabyEvent {
   endedAt   DateTime?
   data      Json?
   note      String?
+  /// Who made the record, when the child is shared.
+  byUserId  String?
   createdAt DateTime  @default(now())
 
   @@index([childId, startedAt])
@@ -340,4 +347,37 @@ model FoodTry {
   note     String?
 
   @@index([foodId])
+}
+
+/// Another person (dad, grandma, nanny) who tracks the same child. status: invited | active.
+model ChildAccess {
+  id          String   @id @default(cuid())
+  childId     String
+  userId      String
+  status      String   @default("invited")
+  invitedById String?
+  createdAt   DateTime @default(now())
+  child       Child    @relation(fields: [childId], references: [id], onDelete: Cascade)
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([childId, userId])
+  @@index([userId, status])
+}
+
+/// A vaccination or doctor visit. kind: vaccine | visit.
+model BabyHealth {
+  id               String   @id @default(cuid())
+  childId          String
+  child            Child    @relation(fields: [childId], references: [id], onDelete: Cascade)
+  kind             String
+  title            String
+  /// YYYY-MM-DD
+  date             String
+  done             Boolean  @default(false)
+  note             String?
+  remindDaysBefore Int      @default(3)
+  lastNotifiedFor  String?
+  createdAt        DateTime @default(now())
+
+  @@index([childId, date])
 }

@@ -1,0 +1,91 @@
+/* Very dark, warm and low-contrast so it does not wake anyone up. */
+.night {
+  position: fixed;
+  inset: 0;
+  z-index: 90;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  padding: calc(1rem + env(safe-area-inset-top)) 1rem calc(1.25rem + env(safe-area-inset-bottom));
+  background: #07070a;
+  color: #b98a5a;
+}
+
+.top {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.clock {
+  font-size: 1.6rem;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+
+.name {
+  flex: 1;
+  opacity: 0.7;
+}
+
+.close {
+  padding: 0.5rem 0.9rem;
+  border-radius: 99px;
+  border: 1px solid #2a2118;
+  color: #b98a5a;
+}
+
+.big {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  border-radius: 28px;
+  background: #121015;
+  border: 2px solid #1d1820;
+  color: #c89664;
+}
+
+.active {
+  border-color: #6d4a2c;
+  background: #1a130f;
+}
+
+.icon {
+  font-size: 2.4rem;
+  filter: saturate(0.4) brightness(0.8);
+}
+
+.label {
+  font-size: 1.6rem;
+  font-weight: 800;
+}
+
+.meta {
+  font-size: 1.05rem;
+  font-variant-numeric: tabular-nums;
+  opacity: 0.7;
+}
+
+.row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+  height: 22vh;
+}
+
+.small {
+  border-radius: 24px;
+  background: #121015;
+  border: 2px solid #1d1820;
+  color: #c89664;
+  font-size: 1.25rem;
+  font-weight: 750;
+}
+
+.big:active,
+.small:active {
+  background: #1d1713;
+}
