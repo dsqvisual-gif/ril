@@ -21,7 +21,7 @@ export default function AuthReturn() {
     if (started.current) return;
     started.current = true;
     if (!code) {
-      if (!error) router.replace("/");
+      if (!error) router.replace("/welcome");
       return;
     }
     void auth("exchange", { code })
@@ -31,7 +31,7 @@ export default function AuthReturn() {
       })
       .catch((e: Error) => {
         // The phone app may already have used this code on its own.
-        if (user) router.replace("/");
+        if (user) goHomeAfterSignIn();
         else setFailed(e.message);
       });
   }, [code, error, signIn, user]);

@@ -14,6 +14,9 @@ export type Session = { token: string; user: AccountUser };
 
 export class ApiError extends Error {}
 
+/** No connection to the website (offline, or the server cannot be reached). */
+export class NetworkError extends ApiError {}
+
 type Result<T> = T & { error?: string };
 
 async function call<T>(path: string, init: RequestInit): Promise<T> {
@@ -24,7 +27,7 @@ async function call<T>(path: string, init: RequestInit): Promise<T> {
       headers: { "Content-Type": "application/json", ...(init.headers ?? {}) },
     });
   } catch {
-    throw new ApiError("Нет связи с сервером. Проверьте интернет и попробуйте ещё раз.");
+    throw new NetworkError("Нет связи с сервером. Проверьте интернет и попробуйте ещё раз.");
   }
   const data = (await res.json().catch(() => ({}))) as Result<T>;
   if (!res.ok || data.error) throw new ApiError(data.error || "Что-то пошло не так. Попробуйте ещё раз.");
@@ -82,7 +85,7 @@ export async function rpc<T>(token: string, fn: string, ...args: unknown[]): Pro
       body: JSON.stringify({ fn, args }),
     });
   } catch {
-    throw new ApiError("Нет связи с сервером. Проверьте интернет.");
+    throw new NetworkError("Нет связи с сервером. Проверьте интернет.");
   }
   const data = (await res.json().catch(() => ({}))) as { result?: unknown; error?: string };
   if (res.status === 401) throw new SignedOutError("Войдите в аккаунт ещё раз");

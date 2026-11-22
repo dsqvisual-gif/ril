@@ -3,10 +3,18 @@ import { router } from "expo-router";
 import { signInOnWebsite, type WebFlow } from "./web-sign-in";
 import type { Session } from "./api";
 
-/** After any successful sign-in: straight to the planner, with the sign-in screens closed. */
+/**
+ * After a sign-in. The root layout swaps the sign-in screens for the app by itself
+ * (protected screens); this only makes sure the planner is the open tab.
+ */
 export function goHomeAfterSignIn() {
-  if (router.canDismiss()) router.dismissAll();
-  router.replace("/");
+  setTimeout(() => {
+    try {
+      router.replace("/");
+    } catch {
+      // Already there.
+    }
+  }, 0);
 }
 
 /**

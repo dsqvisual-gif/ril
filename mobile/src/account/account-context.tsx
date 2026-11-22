@@ -64,7 +64,7 @@ export function AccountProvider({ children }: { children: React.ReactNode }) {
           await remember(null);
         }
       } catch {
-        // Offline: keep the cached profile.
+        // Offline: keep the cached profile; the planner works from its copy.
       }
     })();
     return () => {
@@ -85,7 +85,9 @@ export function AccountProvider({ children }: { children: React.ReactNode }) {
     await writeToken(null);
     setToken(null);
     await remember(null);
-  }, [remember]);
+    // The account's tasks stay with the account, not on the phone.
+    await db.execAsync("DELETE FROM cache; DELETE FROM outbox;");
+  }, [remember, db]);
 
   const value = useMemo(() => ({ user, token, ready, signIn, signOut }), [user, token, ready, signIn, signOut]);
   return <AccountContext.Provider value={value}>{children}</AccountContext.Provider>;
