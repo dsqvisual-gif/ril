@@ -14,6 +14,7 @@ import { listChildInvites } from "@/lib/actions/baby-care";
 import { prisma } from "@/lib/prisma";
 import { cookies } from "next/headers";
 import { PENDING_FRIEND_COOKIE } from "@/lib/friend-link";
+import { RETURN_COOKIE } from "@/lib/mobile-auth";
 import { FriendLinkPrompt, type FriendLinkTarget } from "@/components/friends/FriendLinkPrompt";
 
 export default async function AppLayout({
@@ -42,6 +43,8 @@ export default async function AppLayout({
     },
   });
   if (!exists) redirect("/goodbye");
+  // Signed in on the website on behalf of the mobile app: hand the session back to it.
+  if ((await cookies()).get(RETURN_COOKIE)?.value) redirect("/mobile/finish");
   // From the DB, so a renamed profile shows at once (the session keeps the old name).
   const name = exists.name || user.name || "";
   const childInvites = await listChildInvites();

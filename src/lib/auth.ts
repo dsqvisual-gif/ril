@@ -32,7 +32,7 @@ function pendingAccount(payload: unknown): PendingAccount | null {
 }
 
 /** Signs in with a code from email: finishes a registration or logs into an account. */
-async function authorizeEmailCode(credentials: Partial<Record<string, unknown>> | undefined) {
+export async function authorizeEmailCode(credentials: Partial<Record<string, unknown>> | undefined) {
   const email = typeof credentials?.email === "string" ? normalizeEmail(credentials.email) : "";
   const code = typeof credentials?.code === "string" ? credentials.code : "";
   const purpose = credentials?.purpose === "register" ? "register" : "login";

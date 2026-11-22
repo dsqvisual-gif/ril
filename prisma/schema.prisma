@@ -430,3 +430,15 @@ model ErrorEvent {
 
   @@index([status, lastSeen])
 }
+
+/// One-time handoff from a website sign-in (e.g. Google) back to the mobile app.
+/// The app trades the code for its own token within a few minutes.
+model MobileAuthCode {
+  id        String   @id @default(cuid())
+  codeHash  String   @unique
+  userId    String
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([expiresAt])
+}
