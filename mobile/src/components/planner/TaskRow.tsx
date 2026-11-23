@@ -46,6 +46,9 @@ export function TaskRow(props: Props) {
     <Swipeable
       ref={swipe}
       friction={1.6}
+      // A clearly sideways move is needed, so scrolling the list up and down never grabs a task.
+      dragOffsetFromLeft={36}
+      dragOffsetFromRight={-36}
       leftThreshold={70}
       rightThreshold={70}
       overshootLeft={false}

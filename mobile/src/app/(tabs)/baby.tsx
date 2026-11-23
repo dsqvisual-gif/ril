@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { ActivityIndicator, Image, Modal, Pressable, RefreshControl, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { ActivityIndicator, Modal, Pressable, RefreshControl, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { router } from "expo-router";
 import * as Haptics from "expo-haptics";
@@ -25,6 +25,7 @@ import {
 } from "@/shared/baby";
 import { shiftDateKey, toDateKey, todayKey } from "@/shared/dates";
 import { radius, usePalette } from "@/theme/theme";
+import { Mascot } from "@/components/Mascot";
 
 const DAY = 86_400_000;
 const startOfDay = (t: number) => {
@@ -171,7 +172,7 @@ function ChildForm({
     <View style={[styles.card, { backgroundColor: c.surface, borderColor: c.border }]}>
       {first ? (
         <View style={{ alignItems: "center", gap: 6 }}>
-          <Image source={require("../../../assets/mascot.webp")} style={{ width: 110, height: 130 }} resizeMode="contain" />
+          <Mascot width={95} />
           <Text style={[styles.h1, { color: c.ink, textAlign: "center" }]}>Расскажите о малыше</Text>
           <Text style={{ color: c.inkSecondary, textAlign: "center", lineHeight: 20 }}>
             Отмечайте сон, кормления и подгузники в одно касание, ведите прикорм и смотрите статистику. Личный планер — рядом, во вкладке «Планер».

@@ -13,6 +13,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { router } from "expo-router";
 import { radius, usePalette } from "@/theme/theme";
+import { GoogleLogo } from "@/components/GoogleLogo";
 
 /** Frame of the sign-in screens: back link, mascot, title, explanation. */
 export function AuthFrame({ title, lead, children }: { title: string; lead?: string; children: React.ReactNode }) {
@@ -64,7 +65,7 @@ export function GoogleButton({ onPress, busy }: { onPress: () => void; busy?: bo
       disabled={busy}
       style={[styles.google, { backgroundColor: c.surface, borderColor: c.border, opacity: busy ? 0.6 : 1 }]}
     >
-      <Text style={styles.g}>G</Text>
+      <GoogleLogo size={20} />
       <Text style={[styles.googleText, { color: c.ink }]}>Продолжить с Google</Text>
     </Pressable>
   );
@@ -124,7 +125,6 @@ const styles = StyleSheet.create({
     borderRadius: radius.pill,
     borderWidth: 1,
   },
-  g: { fontSize: 18, fontWeight: "900", color: "#4285F4" },
   googleText: { fontSize: 16, fontWeight: "700" },
   divider: { flexDirection: "row", alignItems: "center", gap: 10 },
   line: { flex: 1, height: StyleSheet.hairlineWidth },

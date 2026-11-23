@@ -30,6 +30,7 @@ import { UndoToast } from "@/components/UndoToast";
 import { notifyChanged } from "@/notify/notify";
 import { NotifyPrompt } from "@/notify/NotifyPrompt";
 import { radius, usePalette } from "@/theme/theme";
+import { Mascot } from "@/components/Mascot";
 
 type Notice = { key: number; text: string; undo?: () => void };
 type Mode = "day" | "week" | "month";
@@ -429,6 +430,12 @@ export default function PlannerScreen() {
           ) : null}
 
           {tasks === null && !error ? <ActivityIndicator color={c.accent} style={{ marginTop: 20 }} /> : null}
+
+          {tasks && tasks.length === 0 && !adding ? (
+            <View style={{ alignItems: "center", paddingVertical: 6 }}>
+              <Mascot width={96} />
+            </View>
+          ) : null}
 
           <View style={styles.list}>
             {[...open, ...done].map((task) =>

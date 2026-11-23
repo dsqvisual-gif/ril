@@ -1,5 +1,5 @@
 import { Suspense, useEffect } from "react";
-import { ActivityIndicator, Pressable, Text, View } from "react-native";
+import { Pressable, Text, View } from "react-native";
 import { Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
@@ -9,6 +9,7 @@ import { useIsDark, usePalette } from "@/theme/theme";
 import { SettingsProvider } from "@/theme/settings-context";
 import { AccountProvider, useAccount } from "@/account/account-context";
 import { installErrorReporting, reportAppError } from "@/account/report";
+import { Launch } from "@/components/Launch";
 
 let reporting = false;
 
@@ -41,13 +42,7 @@ export default function RootLayout() {
   return (
     <GestureHandlerRootView style={{ flex: 1, backgroundColor: c.bg }}>
       <SafeAreaProvider>
-        <Suspense
-          fallback={
-            <View style={{ flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: c.bg }}>
-              <ActivityIndicator color={c.accent} />
-            </View>
-          }
-        >
+        <Suspense fallback={<Launch bg={c.bg} ink={c.ink} />}>
           {/* The phone keeps a copy of the planner, so it also works without internet. */}
           <StoreProvider>
             <SettingsProvider>
@@ -72,13 +67,7 @@ function ThemedStack() {
   const dark = useIsDark();
   const { user, ready } = useAccount();
 
-  if (!ready) {
-    return (
-      <View style={{ flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: c.bg }}>
-        <ActivityIndicator color={c.accent} />
-      </View>
-    );
-  }
+  if (!ready) return <Launch bg={c.bg} ink={c.ink} />;
 
   const signedIn = Boolean(user);
   return (

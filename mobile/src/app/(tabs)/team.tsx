@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ActivityIndicator, Image, Pressable, RefreshControl, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { ActivityIndicator, Pressable, RefreshControl, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useFocusEffect } from "expo-router";
 import { useRpc } from "@/account/use-rpc";
@@ -11,6 +11,7 @@ import { Schedule } from "@/components/team/Schedule";
 import { TaskBoard } from "@/components/team/TaskBoard";
 import { isManager, ROLE, type Member, type Role, type Run, type TeamView } from "@/components/team/types";
 import { radius, usePalette } from "@/theme/theme";
+import { Mascot } from "@/components/Mascot";
 
 type Summary = { id: string; name: string; role: Role; memberCount: number };
 type Invitation = { memberId: string; companyId: string; companyName: string; invitedBy: string | null };
@@ -183,7 +184,7 @@ function CreateTeam({ first, onCreate, onCancel }: { first: boolean; onCreate: (
   const [name, setName] = useState("");
   return (
     <View style={[styles.card, { backgroundColor: c.surface, borderColor: c.border }]}>
-      {first ? <Image source={require("../../../assets/mascot.webp")} style={styles.mascot} resizeMode="contain" /> : null}
+      {first ? <Mascot width={90} style={{ alignSelf: "center" }} /> : null}
       <Text style={[styles.cardTitle, { color: c.ink, textAlign: first ? "center" : "left" }]}>{first ? "Соберите свою команду" : "Новая команда"}</Text>
       <Text style={[styles.muted, { color: c.inkSecondary, textAlign: first ? "center" : "left", lineHeight: 19 }]}>
         Вы станете владельцем: позовёте людей по нику и будете раздавать задачи со сроками.

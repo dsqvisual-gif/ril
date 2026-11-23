@@ -1,5 +1,5 @@
 import { useCallback, useState } from "react";
-import { ActivityIndicator, Image, Pressable, RefreshControl, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { ActivityIndicator, Pressable, RefreshControl, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useFocusEffect } from "expo-router";
 import { differenceInCalendarDays, format } from "date-fns";
@@ -10,6 +10,7 @@ import { Button, DateField, Icon, Segmented, SectionLabel, Tag } from "@/compone
 import { formatAmount, GOAL_KINDS, goalProgress, guessTarget, type GoalKind } from "@/shared/goal-progress";
 import { fromDateKey, todayKey } from "@/shared/dates";
 import { radius, usePalette } from "@/theme/theme";
+import { Mascot } from "@/components/Mascot";
 
 type Entry = { id: string; text: string; amount: number | null; progress: number | null; createdAt: string };
 type Step = { id: string; title: string; done: boolean };
@@ -114,7 +115,7 @@ export default function GoalsScreen() {
 
         {goals && goals.length === 0 ? (
           <View style={styles.empty}>
-            <Image source={require("../../../assets/mascot.webp")} style={styles.mascot} resizeMode="contain" />
+            <Mascot width={100} bubble />
             <Text style={[styles.emptyTitle, { color: c.ink }]}>Пока ни одной цели</Text>
             <Text style={[styles.emptyText, { color: c.inkSecondary }]}>
               Начни с чего-то конкретного: «Прочитать 5 книг», «Пробежать 10 км», «Выучить 300 слов».
