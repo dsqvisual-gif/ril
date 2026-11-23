@@ -16,6 +16,7 @@ import { router, useFocusEffect } from "expo-router";
 import type { AccountRow, FriendsBoard } from "@/account/api";
 import { useRpc } from "@/account/use-rpc";
 import { AccountAvatar } from "@/components/AccountAvatar";
+import { Icon, IconBadge } from "@/components/ui";
 import { radius, usePalette } from "@/theme/theme";
 
 type ActionState = { error?: string };
@@ -111,9 +112,9 @@ export default function FriendsScreen() {
           </Text>
         ) : null}
         <Pressable onPress={() => router.push("/settings/qr")} style={[styles.qrBtn, { backgroundColor: c.surface, borderColor: c.border }]}>
-          <Text style={{ fontSize: 20 }}>🔳</Text>
+          <IconBadge name="qr-code-outline" color="#0ca678" />
           <Text style={{ flex: 1, color: c.ink, fontWeight: "700", fontSize: 15 }}>Мой QR — друг добавит вас камерой</Text>
-          <Text style={{ color: c.inkTertiary, fontSize: 22 }}>›</Text>
+          <Icon name="chevron-forward" color={c.inkTertiary} />
         </Pressable>
 
         <TextInput

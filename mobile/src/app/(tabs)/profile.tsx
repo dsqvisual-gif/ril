@@ -41,21 +41,21 @@ export default function SettingsHub() {
         </Pressable>
 
         <SettingsGroup title="Профиль">
-          <SettingsRow icon="🙂" tone="#ffe8ef" title="Фото, имя и ник" onPress={() => router.push("/settings/profile")} />
-          <SettingsRow icon="🔳" tone="#e6f4ea" title="Мой QR для друзей" onPress={() => router.push("/settings/qr")} last />
+          <SettingsRow icon="person-circle-outline" tone="#e64980" title="Фото, имя и ник" onPress={() => router.push("/settings/profile")} />
+          <SettingsRow icon="qr-code-outline" tone="#0ca678" title="Мой QR для друзей" onPress={() => router.push("/settings/qr")} last />
         </SettingsGroup>
 
         <SettingsGroup title="Приложение">
           <SettingsRow
-            icon="🎨"
-            tone="#e7e4ff"
+            icon="color-palette-outline"
+            tone="#7950f2"
             title="Оформление"
             value={settings.theme === "system" ? "Авто" : THEMES.find((t) => t.id === settings.theme)?.name}
             onPress={() => router.push("/settings/appearance")}
           />
           <SettingsRow
-            icon="🔔"
-            tone="#dff1ff"
+            icon="notifications-outline"
+            tone="#f08c00"
             title="Уведомления и напоминания"
             onPress={() => router.push("/settings/notifications")}
             last
@@ -64,8 +64,8 @@ export default function SettingsHub() {
 
         <SettingsGroup title="Успехи">
           <SettingsRow
-            icon="🏆"
-            tone="#fff1d6"
+            icon="trophy-outline"
+            tone="#d99a06"
             title="Достижения и мои цифры"
             onPress={() => router.push("/settings/achievements")}
             last
@@ -74,14 +74,14 @@ export default function SettingsHub() {
 
         <SettingsGroup title="Аккаунт">
           <SettingsRow
-            icon="🔐"
-            tone="#eceef3"
+            icon="key-outline"
+            tone="#0a84ff"
             title="Аккаунт и безопасность"
             onPress={() => router.push("/settings/account")}
           />
           <SettingsRow
-            icon="💡"
-            tone="#fff6c7"
+            icon="help-circle-outline"
+            tone="#5f6b7a"
             title="Помощь и документы"
             onPress={() => router.push("/settings/about")}
             last

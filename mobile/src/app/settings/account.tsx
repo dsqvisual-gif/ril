@@ -35,8 +35,8 @@ export default function AccountSettings() {
   return (
     <SettingsScreen title="Аккаунт" lead="Один аккаунт для сайта и приложения: дела, цели, друзья и команда одинаковые и там, и тут.">
       <SettingsGroup>
-        <SettingsRow icon="✉️" tone="#dff1ff" title="Почта" value={user.email} />
-        <SettingsRow icon="@" tone="#e7e4ff" title="Ник" value={user.username ? `@${user.username}` : "не задан"} last />
+        <SettingsRow icon="mail-outline" tone="#0a84ff" title="Почта" value={user.email} />
+        <SettingsRow icon="at-outline" tone="#7950f2" title="Ник" value={user.username ? `@${user.username}` : "не задан"} last />
       </SettingsGroup>
 
       <Pressable

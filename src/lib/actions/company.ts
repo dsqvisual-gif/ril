@@ -338,7 +338,8 @@ async function setRoleInner(
 
 async function createTaskInner(companyId: string, input: CompanyTaskInput): Promise<CompanyView> {
   const userId = await requireUserId();
-  await membership(userId, companyId);
+  const me = await membership(userId, companyId);
+  if (!isManager(me.role)) throw new UserError("Задачи добавляют владелец и администраторы");
   const title = text(input.title, TITLE_MAX, "Задача", true)!;
   const note = text(input.note, NOTE_MAX, "Описание", false);
   const startDate = dateOrNull(input.startDate, "Начало");
@@ -368,15 +369,16 @@ async function updateTaskInner(taskId: string, patch: CompanyTaskPatch): Promise
   const task = await prisma.companyTask.findUnique({ where: { id: taskId } });
   if (!task) throw new UserError("Задача не найдена");
   const me = await membership(userId, task.companyId);
-  const canEdit = isManager(me.role) || task.creatorId === userId;
+  // Admins run the team's tasks; everyone else only marks how their own task is going.
+  const canEdit = isManager(me.role);
   const isAssignee = task.assigneeId === userId;
 
   const editsDetails = Object.keys(patch).some((key) => key !== "status");
   if (editsDetails && !canEdit) {
-    throw new UserError("Менять задачу может её автор, владелец или администратор");
+    throw new UserError("Менять задачу могут владелец и администраторы");
   }
   if (patch.status !== undefined && !canEdit && !isAssignee) {
-    throw new UserError("Статус меняет исполнитель, автор или администратор");
+    throw new UserError("Статус меняет исполнитель или администратор");
   }
 
   const data: Record<string, unknown> = {};
@@ -407,8 +409,8 @@ async function deleteTaskInner(taskId: string): Promise<CompanyView> {
   const task = await prisma.companyTask.findUnique({ where: { id: taskId } });
   if (!task) throw new UserError("Задача не найдена");
   const me = await membership(userId, task.companyId);
-  if (!isManager(me.role) && task.creatorId !== userId) {
-    throw new UserError("Удалить задачу может её автор, владелец или администратор");
+  if (!isManager(me.role)) {
+    throw new UserError("Удалить задачу могут владелец и администраторы");
   }
   await prisma.companyTask.delete({ where: { id: task.id } });
   return viewInner(task.companyId);

@@ -2,10 +2,12 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { router } from "expo-router";
 import { radius, usePalette } from "@/theme/theme";
+import { IconBadge, type IconName } from "@/components/ui";
 
 /** A settings line, like on the website and in phone settings. */
 export function SettingsRow(props: {
-  icon: string;
+  icon: IconName;
+  /** Colour of the icon; its square is a light tint of it. */
   tone: string;
   title: string;
   value?: string;
@@ -24,9 +26,7 @@ export function SettingsRow(props: {
         pressed && { backgroundColor: c.fill },
       ]}
     >
-      <View style={[styles.icon, { backgroundColor: props.tone }]}>
-        <Text style={styles.iconText}>{props.icon}</Text>
-      </View>
+      <IconBadge name={props.icon} color={props.tone} />
       <Text style={[styles.rowTitle, { color: c.ink }]} numberOfLines={1}>
         {props.title}
       </Text>
@@ -69,8 +69,6 @@ export function SettingsScreen({ title, lead, children }: { title: string; lead?
 
 const styles = StyleSheet.create({
   row: { flexDirection: "row", alignItems: "center", gap: 12, minHeight: 56, paddingHorizontal: 14 },
-  icon: { width: 32, height: 32, borderRadius: 9, alignItems: "center", justifyContent: "center" },
-  iconText: { fontSize: 17 },
   rowTitle: { flex: 1, fontSize: 16, fontWeight: "600" },
   value: { fontSize: 14, maxWidth: "45%" },
   chevron: { fontSize: 24, lineHeight: 26 },

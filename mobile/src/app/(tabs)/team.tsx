@@ -1,12 +1,13 @@
-import { useCallback, useEffect, useRef, useState } from "react";
-import { ActivityIndicator, Pressable, RefreshControl, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { ActivityIndicator, Image, Pressable, RefreshControl, ScrollView, StyleSheet, Switch, Text, TextInput, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useFocusEffect } from "expo-router";
-import { addDays, format } from "date-fns";
+import { differenceInCalendarDays, format } from "date-fns";
 import { ru } from "date-fns/locale";
 import { useRpc } from "@/account/use-rpc";
 import { confirmAsk, errorText } from "@/components/dialogs";
-import { fromDateKey, toDateKey, todayKey } from "@/shared/dates";
+import { Button, DateField, Icon, Segmented, Tag } from "@/components/ui";
+import { fromDateKey, todayKey } from "@/shared/dates";
 import { radius, usePalette } from "@/theme/theme";
 
 type Role = "owner" | "admin" | "member";
@@ -27,34 +28,34 @@ type CTask = {
 };
 type TeamView = { company: { id: string; name: string }; me: { userId: string; role: Role }; members: Member[]; tasks: CTask[] };
 type Lists = { companies: Summary[]; invitations: Invitation[] };
+type Run = (task: () => Promise<unknown>) => Promise<boolean>;
 
-const STATUS: Record<Status, { label: string; color: string }> = {
-  todo: { label: "К работе", color: "#8e8e93" },
-  doing: { label: "В работе", color: "#007aff" },
-  done: { label: "Готово", color: "#34c759" },
-};
-const ROLE: Record<Role, string> = { owner: "владелец", admin: "админ", member: "участник" };
+const STATUSES: { id: Status; label: string; color: string }[] = [
+  { id: "todo", label: "Не начато", color: "#8e8e93" },
+  { id: "doing", label: "В процессе", color: "#f08c00" },
+  { id: "done", label: "Готово", color: "#2f9e44" },
+];
+const ROLE: Record<Role, string> = { owner: "Владелец", admin: "Админ", member: "Участник" };
 const isManager = (r: Role) => r === "owner" || r === "admin";
 
-const DEADLINES: { label: string; days: number | null }[] = [
-  { label: "Без срока", days: null },
-  { label: "Сегодня", days: 0 },
-  { label: "Завтра", days: 1 },
-  { label: "Через 3 дня", days: 3 },
-  { label: "Через неделю", days: 7 },
-];
-const deadlineFor = (days: number | null) => (days === null ? null : toDateKey(addDays(new Date(), days)));
+function plural(n: number, [one, few, many]: [string, string, string]) {
+  const d = n % 10;
+  const t = n % 100;
+  if (d === 1 && t !== 11) return one;
+  if (d >= 2 && d <= 4 && (t < 12 || t > 14)) return few;
+  return many;
+}
 
-/** Teams, as on the website: companies, people and roles, tasks with owners and deadlines. */
+/** Teams as on the website: admins hand out tasks, everyone marks how their own ones are going. */
 export default function TeamScreen() {
   const c = usePalette();
   const call = useRpc();
   const [lists, setLists] = useState<Lists | null>(null);
   const [view, setView] = useState<TeamView | null>(null);
+  const [tab, setTab] = useState<"tasks" | "people">("tasks");
+  const [creating, setCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
-  const [creating, setCreating] = useState(false);
-  const [people, setPeople] = useState(false);
   const openId = useRef<string | null>(null);
   useEffect(() => {
     openId.current = view?.company.id ?? null;
@@ -64,7 +65,8 @@ export default function TeamScreen() {
     try {
       const l = await call<Lists>("company.list");
       setLists(l);
-      const id = (openId.current && l.companies.some((x) => x.id === openId.current) ? openId.current : null) ?? l.companies[0]?.id;
+      const keep = openId.current && l.companies.some((x) => x.id === openId.current) ? openId.current : null;
+      const id = keep ?? l.companies[0]?.id;
       setView(id ? await call<TeamView>("company.view", id) : null);
       setError(null);
     } catch (e) {
@@ -80,16 +82,18 @@ export default function TeamScreen() {
     }, [load]),
   );
 
-  async function run<T>(task: () => Promise<T>): Promise<T | undefined> {
+  const run: Run = async (task) => {
     try {
       setError(null);
-      return await task();
+      await task();
+      return true;
     } catch (e) {
       setError(errorText(e));
+      return false;
     }
-  }
+  };
 
-  const noTeams = lists && lists.companies.length === 0;
+  const noTeams = lists !== null && lists.companies.length === 0;
 
   return (
     <SafeAreaView style={[styles.root, { backgroundColor: c.bg }]} edges={["top"]}>
@@ -98,52 +102,61 @@ export default function TeamScreen() {
         keyboardShouldPersistTaps="handled"
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); void load(); }} />}
       >
-        <Text style={[styles.title, { color: c.ink }]}>Команда</Text>
-        {error ? <Text style={{ color: c.danger, fontWeight: "600" }}>{error}</Text> : null}
-        {!lists && !error ? <ActivityIndicator color={c.accent} /> : null}
+        <View style={{ gap: 4 }}>
+          <Text style={[styles.title, { color: c.ink }]}>Команда</Text>
+          <Text style={[styles.lead, { color: c.inkSecondary }]}>Общие задачи с исполнителем и сроком. Задачи раздают администраторы.</Text>
+        </View>
+
+        {error ? <Text style={[styles.error, { color: c.danger }]}>{error}</Text> : null}
+        {!lists && !error ? <ActivityIndicator color={c.accent} style={{ marginTop: 20 }} /> : null}
 
         {lists?.invitations.map((inv) => (
-          <View key={inv.memberId} style={[styles.card, { backgroundColor: c.tintWarn, borderColor: c.border }]}>
-            <Text style={[styles.cardTitle, { color: c.ink }]}>Приглашение в «{inv.companyName}»</Text>
-            {inv.invitedBy ? <Text style={{ color: c.inkSecondary }}>от {inv.invitedBy}</Text> : null}
+          <View key={inv.memberId} style={[styles.card, { backgroundColor: c.surface, borderColor: c.accent }]}>
             <View style={styles.row}>
-              <Btn title="Принять" onPress={() => void run(async () => { openId.current = inv.companyId; await call("company.respond", inv.memberId, true); await load(); })} />
-              <Btn title="Отклонить" ghost onPress={() => void run(async () => { await call("company.respond", inv.memberId, false); await load(); })} />
+              <Icon name="mail-unread-outline" color={c.accent} size={22} />
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.cardTitle, { color: c.ink }]}>Приглашение в «{inv.companyName}»</Text>
+                {inv.invitedBy ? <Text style={[styles.muted, { color: c.inkSecondary }]}>Позвал(а) {inv.invitedBy}</Text> : null}
+              </View>
+            </View>
+            <View style={styles.row}>
+              <Button title="Вступить" small onPress={() => void run(async () => { openId.current = inv.companyId; await call("company.respond", inv.memberId, true); await load(); })} />
+              <Button title="Отказаться" small kind="ghost" onPress={() => void run(async () => { await call("company.respond", inv.memberId, false); await load(); })} />
             </View>
           </View>
         ))}
 
         {lists && lists.companies.length > 0 ? (
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chips}>
             {lists.companies.map((co) => {
               const on = view?.company.id === co.id && !creating;
               return (
                 <Pressable
                   key={co.id}
-                  onPress={() => void run(async () => { setCreating(false); setPeople(false); setView(await call<TeamView>("company.view", co.id)); })}
-                  style={[styles.chip, { backgroundColor: on ? c.accent : c.surface, borderColor: c.border }]}
+                  onPress={() => void run(async () => { setCreating(false); setView(await call<TeamView>("company.view", co.id)); })}
+                  style={[styles.chip, { backgroundColor: on ? c.accent : c.surface, borderColor: on ? c.accent : c.border }]}
                 >
                   <Text style={{ color: on ? c.onAccent : c.ink, fontWeight: "700" }}>{co.name}</Text>
                 </Pressable>
               );
             })}
-            <Pressable onPress={() => setCreating(true)} style={[styles.chip, { backgroundColor: creating ? c.accent : c.surface, borderColor: c.border }]}>
-              <Text style={{ color: creating ? c.onAccent : c.accent, fontWeight: "800" }}>+ Новая</Text>
+            <Pressable onPress={() => setCreating(true)} style={[styles.chip, { backgroundColor: c.surface, borderColor: c.border }]}>
+              <Text style={{ color: c.accent, fontWeight: "700" }}>+ Новая команда</Text>
             </Pressable>
           </ScrollView>
         ) : null}
 
         {noTeams || creating ? (
           <CreateTeam
-            first={Boolean(noTeams)}
+            first={noTeams}
             onCancel={noTeams ? undefined : () => setCreating(false)}
             onCreate={(name) =>
               run(async () => {
                 const v = await call<TeamView>("company.create", name);
-                setView(v);
                 openId.current = v.company.id;
+                setView(v);
                 setCreating(false);
-                setPeople(true);
+                setTab("people");
                 setLists(await call<Lists>("company.list"));
               })
             }
@@ -152,37 +165,28 @@ export default function TeamScreen() {
 
         {view && !creating ? (
           <>
-            <View style={styles.headRow}>
-              <View style={{ flex: 1 }}>
-                <Text style={[styles.company, { color: c.ink }]}>{view.company.name}</Text>
-                <Text style={{ color: c.inkSecondary }}>
-                  {view.members.filter((m) => m.status === "active").length} чел. · вы {ROLE[view.me.role]}
-                </Text>
-              </View>
-              <Pressable onPress={() => setPeople((v) => !v)} style={[styles.chip, { backgroundColor: people ? c.accent : c.surface, borderColor: c.border }]}>
-                <Text style={{ color: people ? c.onAccent : c.ink, fontWeight: "700" }}>👥 Люди</Text>
-              </Pressable>
-            </View>
-
-            {people ? <PeoplePanel view={view} onView={setView} onLeft={() => { openId.current = null; setPeople(false); void load(); }} run={run} /> : null}
-
-            <NewTask view={view} onView={setView} run={run} />
-
-            {view.tasks.length === 0 ? <Text style={{ color: c.inkSecondary }}>Задач пока нет — добавьте первую.</Text> : null}
-            {(["todo", "doing", "done"] as Status[]).map((st) => {
-              const tasks = view.tasks.filter((t) => t.status === st);
-              if (tasks.length === 0) return null;
-              return (
-                <View key={st} style={{ gap: 8 }}>
-                  <Text style={[styles.section, { color: STATUS[st].color }]}>
-                    {STATUS[st].label.toUpperCase()} · {tasks.length}
-                  </Text>
-                  {tasks.map((t) => (
-                    <TaskCard key={t.id} task={t} view={view} onView={setView} run={run} />
-                  ))}
-                </View>
-              );
-            })}
+            <Segmented
+              items={[
+                { id: "tasks", label: `Задачи · ${view.tasks.length}` },
+                { id: "people", label: `Люди · ${view.members.filter((m) => m.status === "active").length}` },
+              ]}
+              value={tab}
+              onChange={setTab}
+            />
+            {tab === "tasks" ? (
+              <Tasks view={view} onView={setView} run={run} />
+            ) : (
+              <People
+                view={view}
+                onView={setView}
+                run={run}
+                onGone={() => {
+                  openId.current = null;
+                  setTab("tasks");
+                  void load();
+                }}
+              />
+            )}
           </>
         ) : null}
       </ScrollView>
@@ -190,260 +194,207 @@ export default function TeamScreen() {
   );
 }
 
-type Run = <T>(task: () => Promise<T>) => Promise<T | undefined>;
-
-function CreateTeam({ first, onCreate, onCancel }: { first: boolean; onCreate: (name: string) => Promise<unknown>; onCancel?: () => void }) {
+function CreateTeam({ first, onCreate, onCancel }: { first: boolean; onCreate: (name: string) => Promise<boolean>; onCancel?: () => void }) {
   const c = usePalette();
   const [name, setName] = useState("");
   return (
     <View style={[styles.card, { backgroundColor: c.surface, borderColor: c.border }]}>
-      <Text style={[styles.cardTitle, { color: c.ink }]}>{first ? "У вас пока нет команды" : "Новая команда"}</Text>
-      <Text style={{ color: c.inkSecondary, lineHeight: 20 }}>
-        Создайте команду, добавляйте людей по нику и раздавайте задачи со сроками.
+      {first ? <Image source={require("../../../assets/mascot.webp")} style={styles.mascot} resizeMode="contain" /> : null}
+      <Text style={[styles.cardTitle, { color: c.ink, textAlign: first ? "center" : "left" }]}>{first ? "Соберите свою команду" : "Новая команда"}</Text>
+      <Text style={[styles.muted, { color: c.inkSecondary, textAlign: first ? "center" : "left", lineHeight: 19 }]}>
+        Вы станете владельцем: позовёте людей по нику и будете раздавать задачи со сроками.
       </Text>
       <TextInput
         value={name}
         onChangeText={setName}
-        placeholder="Название, например: Студия Uspeyka"
+        placeholder="Название, например «Кофейня Утро»"
         placeholderTextColor={c.inkTertiary}
+        maxLength={60}
         style={[styles.input, { color: c.ink, borderColor: c.border, backgroundColor: c.surfaceMuted }]}
       />
       <View style={styles.row}>
-        <Btn title="Создать команду" disabled={!name.trim()} onPress={() => void onCreate(name.trim()).then(() => setName(""))} />
-        {onCancel ? <Btn title="Отмена" ghost onPress={onCancel} /> : null}
+        <Button title="Создать команду" onPress={() => void onCreate(name.trim()).then((ok) => ok && setName(""))} disabled={!name.trim()} full={first} style={first ? { flex: 1 } : undefined} />
+        {onCancel ? <Button title="Отмена" kind="ghost" onPress={onCancel} /> : null}
       </View>
     </View>
   );
 }
 
-function PeoplePanel({ view, onView, onLeft, run }: { view: TeamView; onView: (v: TeamView) => void; onLeft: () => void; run: Run }) {
+function Initial({ name, size = 26 }: { name: string; size?: number }) {
   const c = usePalette();
-  const call = useRpc();
-  const [nick, setNick] = useState("");
-  const [name, setName] = useState(view.company.name);
+  return (
+    <View style={{ width: size, height: size, borderRadius: size / 2, backgroundColor: c.accentSoft, alignItems: "center", justifyContent: "center" }}>
+      <Text style={{ color: c.accent, fontWeight: "800", fontSize: size * 0.45 }}>{(name.trim() || "?")[0].toUpperCase()}</Text>
+    </View>
+  );
+}
+
+function dueInfo(deadline: string | null, done: boolean): { text: string; tone: "danger" | "warn" | "ok" | "muted" } | null {
+  if (!deadline) return null;
+  const date = format(fromDateKey(deadline), "d MMM", { locale: ru });
+  if (done) return { text: `до ${date}`, tone: "muted" };
+  const days = differenceInCalendarDays(fromDateKey(deadline), fromDateKey(todayKey()));
+  if (days < 0) return { text: `просрочено · ${date}`, tone: "danger" };
+  if (days === 0) return { text: "сегодня", tone: "warn" };
+  if (days === 1) return { text: "завтра", tone: "warn" };
+  if (days <= 3) return { text: `через ${days} ${plural(days, ["день", "дня", "дней"])} · ${date}`, tone: "warn" };
+  return { text: `до ${date}`, tone: "ok" };
+}
+
+function Tasks({ view, onView, run }: { view: TeamView; onView: (v: TeamView) => void; run: Run }) {
+  const c = usePalette();
   const manager = isManager(view.me.role);
-  const owner = view.me.role === "owner";
-  const id = view.company.id;
-  const mine = view.members.find((m) => m.userId === view.me.userId);
+  const [filter, setFilter] = useState<"all" | "mine">(manager ? "all" : "mine");
+  const [adding, setAdding] = useState(false);
+  const mine = view.tasks.filter((t) => t.assigneeId === view.me.userId);
+  const shown = filter === "mine" ? mine : view.tasks;
 
   return (
-    <View style={[styles.card, { backgroundColor: c.surface, borderColor: c.border }]}>
+    <View style={{ gap: 14 }}>
       {manager ? (
-        <View style={{ gap: 8 }}>
-          <Text style={[styles.label, { color: c.inkSecondary }]}>Пригласить по нику</Text>
-          <View style={styles.row}>
-            <TextInput
-              value={nick}
-              onChangeText={(t) => setNick(t.replace(/^@/, "").toLowerCase())}
-              autoCapitalize="none"
-              autoCorrect={false}
-              placeholder="ник, например danil"
-              placeholderTextColor={c.inkTertiary}
-              style={[styles.input, styles.flex, { color: c.ink, borderColor: c.border, backgroundColor: c.surfaceMuted }]}
-            />
-            <Btn
-              title="Позвать"
-              disabled={nick.length < 3}
-              onPress={() => void run(async () => { onView(await call<TeamView>("company.invite", id, nick)); setNick(""); })}
-            />
-          </View>
+        adding ? (
+          <NewTask view={view} onView={onView} run={run} onClose={() => setAdding(false)} />
+        ) : (
+          <Pressable onPress={() => setAdding(true)} style={[styles.addBar, { backgroundColor: c.surface, borderColor: c.border }]}>
+            <View style={[styles.plus, { backgroundColor: c.accent }]}>
+              <Icon name="add" color={c.onAccent} size={20} />
+            </View>
+            <Text style={{ color: c.inkSecondary, fontSize: 16 }}>Новая задача для команды</Text>
+          </Pressable>
+        )
+      ) : (
+        <View style={[styles.note, { backgroundColor: c.accentSoft }]}>
+          <Icon name="information-circle-outline" color={c.accent} size={20} />
+          <Text style={{ flex: 1, color: c.ink, fontSize: 14, lineHeight: 20 }}>
+            Задачи раздают администраторы. У своих задач отмечайте, как идёт работа.
+          </Text>
         </View>
+      )}
+
+      <View style={styles.row}>
+        {(["mine", "all"] as const).map((f) => {
+          const on = filter === f;
+          return (
+            <Pressable key={f} onPress={() => setFilter(f)} style={[styles.filter, { backgroundColor: on ? c.ink : c.surface, borderColor: on ? c.ink : c.border }]}>
+              <Text style={{ color: on ? c.bg : c.ink, fontWeight: "700", fontSize: 14 }}>
+                {f === "mine" ? `Мои · ${mine.length}` : `Все · ${view.tasks.length}`}
+              </Text>
+            </Pressable>
+          );
+        })}
+      </View>
+
+      {shown.length === 0 ? (
+        <Text style={[styles.emptyLine, { color: c.inkSecondary }]}>
+          {filter === "mine" ? "Вам пока ничего не поручили." : manager ? "Задач пока нет — добавьте первую." : "Задач пока нет."}
+        </Text>
       ) : null}
 
-      <Text style={[styles.label, { color: c.inkSecondary }]}>Участники</Text>
-      {view.members.map((m) => {
-        const self = m.userId === view.me.userId;
-        const canRemove = !self && m.role !== "owner" && manager && (m.role !== "admin" || owner);
+      {STATUSES.map((st) => {
+        const items = shown.filter((t) => t.status === st.id);
+        if (items.length === 0) return null;
         return (
-          <View key={m.id} style={[styles.member, { borderBottomColor: c.border }]}>
-            <View style={{ flex: 1 }}>
-              <Text style={[styles.memberName, { color: c.ink }]}>
-                {m.name}
-                {self ? " (вы)" : ""}
-              </Text>
-              <Text style={{ color: c.inkSecondary, fontSize: 13 }}>
-                {m.username ? `@${m.username} · ` : ""}
-                {m.status === "invited" ? "приглашён, ждём ответа" : ROLE[m.role]}
-              </Text>
+          <View key={st.id} style={{ gap: 8 }}>
+            <View style={styles.groupHead}>
+              <View style={[styles.groupDot, { backgroundColor: st.color }]} />
+              <Text style={[styles.groupTitle, { color: c.ink }]}>{st.label}</Text>
+              <Text style={{ color: c.inkTertiary, fontWeight: "700" }}>{items.length}</Text>
             </View>
-            {owner && !self && m.role !== "owner" && m.status === "active" ? (
-              <Pressable
-                onPress={() => void run(async () => onView(await call<TeamView>("company.setRole", id, m.id, m.role === "admin" ? "member" : "admin")))}
-                hitSlop={6}
-              >
-                <Text style={[styles.action, { color: c.accent }]}>{m.role === "admin" ? "Снять админа" : "Сделать админом"}</Text>
-              </Pressable>
-            ) : null}
-            {canRemove ? (
-              <Pressable
-                onPress={() =>
-                  confirmAsk(`Убрать ${m.name} из команды?`, undefined, "Убрать", () =>
-                    void run(async () => {
-                      const v = await call<TeamView | null>("company.removeMember", id, m.id);
-                      if (v) onView(v);
-                    }),
-                  )
-                }
-                hitSlop={6}
-              >
-                <Text style={[styles.action, { color: c.danger }]}>Убрать</Text>
-              </Pressable>
-            ) : null}
+            {items.map((t) => (
+              <TaskCard key={t.id} task={t} view={view} onView={onView} run={run} />
+            ))}
           </View>
         );
       })}
-
-      {manager ? (
-        <View style={{ gap: 8 }}>
-          <Text style={[styles.label, { color: c.inkSecondary }]}>Название</Text>
-          <View style={styles.row}>
-            <TextInput
-              value={name}
-              onChangeText={setName}
-              style={[styles.input, styles.flex, { color: c.ink, borderColor: c.border, backgroundColor: c.surfaceMuted }]}
-            />
-            <Btn
-              title="Сохранить"
-              ghost
-              disabled={!name.trim() || name.trim() === view.company.name}
-              onPress={() => void run(async () => onView(await call<TeamView>("company.rename", id, name.trim())))}
-            />
-          </View>
-        </View>
-      ) : null}
-
-      <View style={styles.rowWrap}>
-        {!owner && mine ? (
-          <Btn
-            title="Выйти из команды"
-            ghost
-            danger
-            onPress={() =>
-              confirmAsk(`Выйти из «${view.company.name}»?`, undefined, "Выйти", () =>
-                void run(async () => {
-                  await call("company.removeMember", id, mine.id);
-                  onLeft();
-                }),
-              )
-            }
-          />
-        ) : null}
-        {owner ? (
-          <Btn
-            title="Удалить команду"
-            ghost
-            danger
-            onPress={() =>
-              confirmAsk(`Удалить «${view.company.name}»?`, "Все задачи команды удалятся у всех участников.", "Удалить", () =>
-                void run(async () => {
-                  await call("company.delete", id);
-                  onLeft();
-                }),
-              )
-            }
-          />
-        ) : null}
-      </View>
     </View>
   );
 }
 
-function AssigneeChips({ view, value, onChange }: { view: TeamView; value: string | null; onChange: (id: string | null) => void }) {
+function PeoplePicker({ view, value, onChange }: { view: TeamView; value: string | null; onChange: (id: string | null) => void }) {
   const c = usePalette();
   const people = view.members.filter((m) => m.status === "active");
-  const items: { id: string | null; label: string }[] = [
-    ...people.map((m) => ({ id: m.userId, label: m.userId === view.me.userId ? "Я" : m.name.split(" ")[0] })),
-    { id: null, label: "Без исполнителя" },
-  ];
   return (
-    <View style={styles.rowWrap}>
-      {items.map((it) => {
-        const on = it.id === value;
+    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chips}>
+      {people.map((m) => {
+        const on = m.userId === value;
         return (
-          <Pressable key={it.id ?? "none"} onPress={() => onChange(it.id)} style={[styles.pick, { backgroundColor: on ? c.accent : c.surfaceMuted, borderColor: c.border }]}>
-            <Text style={{ color: on ? c.onAccent : c.ink, fontWeight: "700", fontSize: 13 }}>{it.label}</Text>
+          <Pressable
+            key={m.userId}
+            onPress={() => onChange(on ? null : m.userId)}
+            style={[styles.person, { backgroundColor: on ? c.accentSoft : c.surfaceMuted, borderColor: on ? c.accent : c.border }]}
+          >
+            <Initial name={m.name} size={22} />
+            <Text style={{ color: on ? c.accent : c.ink, fontWeight: "700", fontSize: 14 }}>
+              {m.userId === view.me.userId ? `${m.name.split(" ")[0]} (я)` : m.name.split(" ")[0]}
+            </Text>
           </Pressable>
         );
       })}
-    </View>
+    </ScrollView>
   );
 }
 
-function DeadlineChips({ value, onChange }: { value: string | null; onChange: (d: string | null) => void }) {
-  const c = usePalette();
-  const known = DEADLINES.some((d) => deadlineFor(d.days) === value);
-  return (
-    <View style={styles.rowWrap}>
-      {DEADLINES.map((d) => {
-        const on = deadlineFor(d.days) === value;
-        return (
-          <Pressable key={d.label} onPress={() => onChange(deadlineFor(d.days))} style={[styles.pick, { backgroundColor: on ? c.accent : c.surfaceMuted, borderColor: c.border }]}>
-            <Text style={{ color: on ? c.onAccent : c.ink, fontWeight: "700", fontSize: 13 }}>{d.label}</Text>
-          </Pressable>
-        );
-      })}
-      {value && !known ? (
-        <View style={[styles.pick, { backgroundColor: c.accent, borderColor: c.border }]}>
-          <Text style={{ color: c.onAccent, fontWeight: "700", fontSize: 13 }}>до {format(fromDateKey(value), "d MMM", { locale: ru })}</Text>
-        </View>
-      ) : null}
-    </View>
-  );
-}
-
-function NewTask({ view, onView, run }: { view: TeamView; onView: (v: TeamView) => void; run: Run }) {
+function NewTask({ view, onView, run, onClose }: { view: TeamView; onView: (v: TeamView) => void; run: Run; onClose: () => void }) {
   const c = usePalette();
   const call = useRpc();
   const [title, setTitle] = useState("");
-  const [assignee, setAssignee] = useState<string | null>(view.me.userId);
+  const [assignee, setAssignee] = useState<string | null>(null);
   const [deadline, setDeadline] = useState<string | null>(null);
+  const [note, setNote] = useState("");
   const [important, setImportant] = useState(false);
-  const open = title.trim().length > 0;
+  const [busy, setBusy] = useState(false);
 
   async function add() {
     if (!title.trim()) return;
-    await run(async () => {
+    setBusy(true);
+    const ok = await run(async () =>
       onView(
         await call<TeamView>("company.createTask", view.company.id, {
           title: title.trim(),
+          note: note.trim() || null,
           assigneeId: assignee,
           startDate: todayKey(),
           deadline,
           important,
         }),
-      );
-      setTitle("");
-      setDeadline(null);
-      setImportant(false);
-    });
+      ),
+    );
+    setBusy(false);
+    if (ok) onClose();
   }
 
   return (
-    <View style={[styles.addCard, { backgroundColor: c.surface, borderColor: c.border }]}>
-      <View style={styles.row}>
-        <TextInput
-          value={title}
-          onChangeText={setTitle}
-          onSubmitEditing={() => void add()}
-          placeholder="Новая задача для команды"
-          placeholderTextColor={c.inkTertiary}
-          style={[styles.addInput, { color: c.ink }]}
-        />
-        <Pressable onPress={() => void add()} style={[styles.plus, { backgroundColor: c.accent, opacity: open ? 1 : 0.5 }]}>
-          <Text style={[styles.plusText, { color: c.onAccent }]}>+</Text>
-        </Pressable>
+    <View style={[styles.card, { backgroundColor: c.surface, borderColor: c.border }]}>
+      <TextInput
+        value={title}
+        onChangeText={setTitle}
+        placeholder="Что нужно сделать"
+        placeholderTextColor={c.inkTertiary}
+        maxLength={140}
+        autoFocus
+        style={[styles.input, { color: c.ink, borderColor: c.border, backgroundColor: c.surfaceMuted }]}
+      />
+      <Text style={[styles.label, { color: c.inkSecondary }]}>Исполнитель</Text>
+      <PeoplePicker view={view} value={assignee} onChange={setAssignee} />
+      <Text style={[styles.label, { color: c.inkSecondary }]}>Срок</Text>
+      <DateField value={deadline} onChange={setDeadline} min={todayKey()} />
+      <TextInput
+        value={note}
+        onChangeText={setNote}
+        placeholder="Подробности (необязательно)"
+        placeholderTextColor={c.inkTertiary}
+        maxLength={1000}
+        multiline
+        style={[styles.input, styles.multiline, { color: c.ink, borderColor: c.border, backgroundColor: c.surfaceMuted }]}
+      />
+      <View style={styles.switchRow}>
+        <Text style={{ color: c.ink, fontSize: 15, fontWeight: "600" }}>Важная задача</Text>
+        <Switch value={important} onValueChange={setImportant} />
       </View>
-      {open ? (
-        <View style={{ gap: 10, paddingRight: 8, paddingBottom: 6 }}>
-          <Text style={[styles.label, { color: c.inkSecondary }]}>Кто делает</Text>
-          <AssigneeChips view={view} value={assignee} onChange={setAssignee} />
-          <Text style={[styles.label, { color: c.inkSecondary }]}>Срок</Text>
-          <DeadlineChips value={deadline} onChange={setDeadline} />
-          <Pressable onPress={() => setImportant((v) => !v)} style={[styles.pick, { alignSelf: "flex-start", backgroundColor: important ? "#f0b429" : c.surfaceMuted, borderColor: c.border }]}>
-            <Text style={{ color: important ? "#3b2a00" : c.ink, fontWeight: "700", fontSize: 13 }}>★ Важно</Text>
-          </Pressable>
-        </View>
-      ) : null}
+      <View style={styles.row}>
+        <Button title="Добавить задачу" onPress={() => void add()} disabled={!title.trim()} busy={busy} style={{ flex: 1 }} />
+        <Button title="Отмена" kind="ghost" onPress={onClose} />
+      </View>
     </View>
   );
 }
@@ -453,76 +404,269 @@ function TaskCard({ task, view, onView, run }: { task: CTask; view: TeamView; on
   const call = useRpc();
   const [open, setOpen] = useState(false);
   const manager = isManager(view.me.role);
-  const canEdit = manager || task.creatorId === view.me.userId;
-  const canStatus = canEdit || task.assigneeId === view.me.userId;
+  const canMove = manager || task.assigneeId === view.me.userId;
   const who = view.members.find((m) => m.userId === task.assigneeId);
-  const late = task.deadline && task.status !== "done" && task.deadline < todayKey();
-  const s = STATUS[task.status];
+  const due = dueInfo(task.deadline, task.status === "done");
+  const done = task.status === "done";
   const patch = (p: Partial<CTask>) => void run(async () => onView(await call<TeamView>("company.updateTask", task.id, p)));
-  const next: Status = task.status === "todo" ? "doing" : task.status === "doing" ? "done" : "todo";
+  const [note, setNote] = useState(task.note ?? "");
+  const tappable = manager || Boolean(task.note);
 
   return (
-    <View style={[styles.task, { backgroundColor: c.surface, borderColor: task.important ? "#f0b429" : c.border }]}>
-      <Pressable onPress={() => setOpen((v) => !v)} style={styles.taskHead}>
-        <View style={{ flex: 1, gap: 3 }}>
-          <Text style={[styles.taskTitle, { color: task.status === "done" ? c.inkTertiary : c.ink }, task.status === "done" && styles.struck]}>
-            {task.important ? "★ " : ""}
-            {task.title}
-          </Text>
-          <Text style={{ color: late ? c.danger : c.inkSecondary, fontSize: 13 }}>
-            {who ? (who.userId === view.me.userId ? "вы" : who.name) : "без исполнителя"}
-            {task.deadline ? ` · до ${format(fromDateKey(task.deadline), "d MMM", { locale: ru })}${late ? " — просрочено" : ""}` : ""}
-          </Text>
+    <View style={[styles.task, { backgroundColor: c.surface, borderColor: task.important && !done ? "#f0b429" : c.border }]}>
+      <Pressable disabled={!tappable} onPress={() => setOpen((v) => !v)} style={styles.taskMain}>
+        <View style={styles.row}>
+          <Text style={[styles.taskTitle, { color: done ? c.inkTertiary : c.ink }, done && styles.struck]}>{task.title}</Text>
+          {tappable ? <Icon name={open ? "chevron-up" : "chevron-down"} color={c.inkTertiary} size={16} /> : null}
         </View>
-        {canStatus ? (
-          <Pressable onPress={() => patch({ status: next })} style={[styles.status, { borderColor: s.color }]} accessibilityLabel={`Статус: ${s.label}. Нажмите, чтобы сменить`}>
-            <Text style={{ color: s.color, fontWeight: "700", fontSize: 13 }}>{s.label}</Text>
-          </Pressable>
-        ) : (
-          <Text style={{ color: s.color, fontWeight: "700", fontSize: 13 }}>{s.label}</Text>
-        )}
-      </Pressable>
-      {open && canEdit ? (
-        <View style={{ gap: 10, marginTop: 10 }}>
-          <Text style={[styles.label, { color: c.inkSecondary }]}>Кто делает</Text>
-          <AssigneeChips view={view} value={task.assigneeId} onChange={(id) => patch({ assigneeId: id })} />
-          <Text style={[styles.label, { color: c.inkSecondary }]}>Срок</Text>
-          <DeadlineChips value={task.deadline} onChange={(d) => patch({ deadline: d })} />
-          <View style={styles.rowWrap}>
-            <Pressable onPress={() => patch({ important: !task.important })} style={[styles.pick, { backgroundColor: task.important ? "#f0b429" : c.surfaceMuted, borderColor: c.border }]}>
-              <Text style={{ color: task.important ? "#3b2a00" : c.ink, fontWeight: "700", fontSize: 13 }}>★ Важно</Text>
-            </Pressable>
-            <Pressable
-              onPress={() =>
-                confirmAsk(`Удалить задачу «${task.title}»?`, undefined, "Удалить", () =>
-                  void run(async () => onView(await call<TeamView>("company.deleteTask", task.id))),
-                )
-              }
-              style={[styles.pick, { borderColor: c.border }]}
-            >
-              <Text style={{ color: c.danger, fontWeight: "700", fontSize: 13 }}>Удалить</Text>
-            </Pressable>
+        {task.important || due ? (
+          <View style={styles.tags}>
+            {task.important ? <Tag tone="warn" text="Важно" /> : null}
+            {due ? <Tag tone={due.tone} text={due.text} /> : null}
           </View>
+        ) : null}
+        <View style={styles.row}>
+          {who ? <Initial name={who.name} /> : <Icon name="person-outline" color={c.inkTertiary} size={18} />}
+          <Text style={{ color: who ? c.ink : c.inkTertiary, fontSize: 14 }}>
+            {who ? (who.userId === view.me.userId ? `${who.name} (я)` : who.name) : "Без исполнителя"}
+          </Text>
         </View>
-      ) : null}
-      {open && !canEdit ? (
-        <Text style={{ color: c.inkTertiary, fontSize: 13, marginTop: 8 }}>Менять задачу может её автор или администратор.</Text>
+      </Pressable>
+
+      {canMove ? (
+        <View style={[styles.statusBar, { borderTopColor: c.border }]}>
+          {STATUSES.map((st) => {
+            const on = task.status === st.id;
+            return (
+              <Pressable
+                key={st.id}
+                disabled={on}
+                onPress={() => patch({ status: st.id })}
+                accessibilityRole="radio"
+                accessibilityState={{ checked: on }}
+                style={[styles.statusItem, on && { backgroundColor: `${st.color}1f` }]}
+              >
+                {on ? <Icon name="checkmark" color={st.color} size={14} /> : null}
+                <Text style={{ color: on ? st.color : c.inkSecondary, fontWeight: on ? "800" : "600", fontSize: 13 }}>{st.label}</Text>
+              </Pressable>
+            );
+          })}
+        </View>
+      ) : (
+        <View style={[styles.statusBar, { borderTopColor: c.border, justifyContent: "flex-start", paddingHorizontal: 14 }]}>
+          <View style={[styles.groupDot, { backgroundColor: STATUSES.find((s) => s.id === task.status)!.color }]} />
+          <Text style={{ color: c.inkSecondary, fontSize: 13, fontWeight: "600" }}>{STATUSES.find((s) => s.id === task.status)!.label}</Text>
+        </View>
+      )}
+
+      {open ? (
+        <View style={[styles.details, { borderTopColor: c.border }]}>
+          {!manager && task.note ? <Text style={{ color: c.ink, fontSize: 14, lineHeight: 20 }}>{task.note}</Text> : null}
+          {manager ? (
+            <>
+              <Text style={[styles.label, { color: c.inkSecondary }]}>Исполнитель</Text>
+              <PeoplePicker view={view} value={task.assigneeId} onChange={(id) => patch({ assigneeId: id })} />
+              <Text style={[styles.label, { color: c.inkSecondary }]}>Срок</Text>
+              <DateField value={task.deadline} onChange={(d) => patch({ deadline: d })} />
+              <TextInput
+                value={note}
+                onChangeText={setNote}
+                onBlur={() => note !== (task.note ?? "") && patch({ note: note.trim() || null })}
+                placeholder="Подробности"
+                placeholderTextColor={c.inkTertiary}
+                multiline
+                style={[styles.input, styles.multiline, { color: c.ink, borderColor: c.border, backgroundColor: c.surfaceMuted }]}
+              />
+              <View style={styles.switchRow}>
+                <Text style={{ color: c.ink, fontSize: 15, fontWeight: "600" }}>Важная задача</Text>
+                <Switch value={task.important} onValueChange={(v) => patch({ important: v })} />
+              </View>
+              <Pressable
+                onPress={() =>
+                  confirmAsk(`Удалить задачу «${task.title}»?`, undefined, "Удалить", () =>
+                    void run(async () => onView(await call<TeamView>("company.deleteTask", task.id))),
+                  )
+                }
+                hitSlop={6}
+              >
+                <Text style={[styles.dangerLink, { color: c.danger }]}>Удалить задачу</Text>
+              </Pressable>
+            </>
+          ) : null}
+        </View>
       ) : null}
     </View>
   );
 }
 
-function Btn({ title, onPress, ghost, danger, disabled }: { title: string; onPress: () => void; ghost?: boolean; danger?: boolean; disabled?: boolean }) {
+function People({ view, onView, run, onGone }: { view: TeamView; onView: (v: TeamView) => void; run: Run; onGone: () => void }) {
   const c = usePalette();
-  const color = danger ? c.danger : c.accent;
+  const call = useRpc();
+  const [nick, setNick] = useState("");
+  const [name, setName] = useState(view.company.name);
+  const [renaming, setRenaming] = useState(false);
+  const manager = isManager(view.me.role);
+  const owner = view.me.role === "owner";
+  const id = view.company.id;
+  const me = view.members.find((m) => m.userId === view.me.userId);
+  const sorted = useMemo(() => {
+    const order: Record<Role, number> = { owner: 0, admin: 1, member: 2 };
+    return [...view.members].sort((a, b) => (a.status === b.status ? order[a.role] - order[b.role] : a.status === "active" ? -1 : 1));
+  }, [view.members]);
+
+  function actions(m: Member) {
+    const self = m.userId === view.me.userId;
+    const out: { label: string; danger?: boolean; run: () => void }[] = [];
+    if (owner && !self && m.role !== "owner" && m.status === "active") {
+      out.push({
+        label: m.role === "admin" ? "Сделать участником" : "Сделать админом",
+        run: () => void run(async () => onView(await call<TeamView>("company.setRole", id, m.id, m.role === "admin" ? "member" : "admin"))),
+      });
+    }
+    if (!self && m.role !== "owner" && manager && (m.role !== "admin" || owner)) {
+      out.push({
+        label: m.status === "invited" ? "Отменить приглашение" : "Убрать из команды",
+        danger: true,
+        run: () =>
+          confirmAsk(`Убрать ${m.name} из команды?`, undefined, "Убрать", () =>
+            void run(async () => {
+              const v = await call<TeamView | null>("company.removeMember", id, m.id);
+              if (v) onView(v);
+            }),
+          ),
+      });
+    }
+    return out;
+  }
+
   return (
-    <Pressable
-      onPress={onPress}
-      disabled={disabled}
-      style={[styles.btn, ghost ? { borderWidth: 1.5, borderColor: danger ? c.border : color } : { backgroundColor: color }, { opacity: disabled ? 0.5 : 1 }]}
-    >
-      <Text style={{ color: ghost ? color : c.onAccent, fontWeight: "800" }}>{title}</Text>
-    </Pressable>
+    <View style={{ gap: 14 }}>
+      {manager ? (
+        <View style={[styles.card, { backgroundColor: c.surface, borderColor: c.border }]}>
+          <Text style={[styles.cardTitle, { color: c.ink }]}>Позвать в команду</Text>
+          <View style={styles.row}>
+            <View style={[styles.nickBox, { borderColor: c.border, backgroundColor: c.surfaceMuted }]}>
+              <Text style={{ color: c.inkTertiary, fontSize: 16 }}>@</Text>
+              <TextInput
+                value={nick}
+                onChangeText={(t) => setNick(t.replace(/^@/, "").toLowerCase())}
+                autoCapitalize="none"
+                autoCorrect={false}
+                placeholder="ник"
+                placeholderTextColor={c.inkTertiary}
+                style={[styles.nickInput, { color: c.ink }]}
+              />
+            </View>
+            <Button
+              title="Позвать"
+              small
+              disabled={nick.length < 3}
+              onPress={() => void run(async () => { onView(await call<TeamView>("company.invite", id, nick)); setNick(""); })}
+            />
+          </View>
+          <Text style={[styles.muted, { color: c.inkSecondary }]}>Человек увидит приглашение у себя в «Команде».</Text>
+        </View>
+      ) : null}
+
+      <View style={[styles.card, { backgroundColor: c.surface, borderColor: c.border, paddingVertical: 6 }]}>
+        {sorted.map((m, i) => {
+          const self = m.userId === view.me.userId;
+          const acts = actions(m);
+          return (
+            <View key={m.id} style={[styles.member, i < sorted.length - 1 && { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: c.border }]}>
+              <Initial name={m.name} size={38} />
+              <View style={{ flex: 1, gap: 3 }}>
+                <Text style={[styles.memberName, { color: c.ink }]}>
+                  {m.name}
+                  {self ? " (я)" : ""}
+                </Text>
+                <View style={styles.tags}>
+                  {m.status === "invited" ? (
+                    <Tag tone="muted" text="ждём ответа" />
+                  ) : (
+                    <Tag tone={m.role === "member" ? "muted" : "accent"} text={ROLE[m.role]} />
+                  )}
+                  {m.username ? <Text style={[styles.muted, { color: c.inkTertiary }]}>@{m.username}</Text> : null}
+                </View>
+                {acts.length ? (
+                  <View style={[styles.row, { marginTop: 4, flexWrap: "wrap" }]}>
+                    {acts.map((a) => (
+                      <Pressable key={a.label} onPress={a.run} hitSlop={6}>
+                        <Text style={{ color: a.danger ? c.danger : c.accent, fontWeight: "700", fontSize: 13 }}>{a.label}</Text>
+                      </Pressable>
+                    ))}
+                  </View>
+                ) : null}
+              </View>
+            </View>
+          );
+        })}
+      </View>
+
+      <View style={[styles.note, { backgroundColor: c.surfaceMuted }]}>
+        <Icon name="shield-checkmark-outline" color={c.inkSecondary} size={18} />
+        <Text style={{ flex: 1, color: c.inkSecondary, fontSize: 13, lineHeight: 18 }}>
+          Владелец и админы добавляют и меняют задачи. Участники видят задачи команды и отмечают статус своих.
+        </Text>
+      </View>
+
+      {manager ? (
+        renaming ? (
+          <View style={[styles.card, { backgroundColor: c.surface, borderColor: c.border }]}>
+            <TextInput
+              value={name}
+              onChangeText={setName}
+              maxLength={60}
+              autoFocus
+              style={[styles.input, { color: c.ink, borderColor: c.border, backgroundColor: c.surfaceMuted }]}
+            />
+            <View style={styles.row}>
+              <Button
+                title="Сохранить"
+                small
+                disabled={!name.trim() || name.trim() === view.company.name}
+                onPress={() => void run(async () => { onView(await call<TeamView>("company.rename", id, name.trim())); setRenaming(false); })}
+              />
+              <Button title="Отмена" small kind="ghost" onPress={() => { setName(view.company.name); setRenaming(false); }} />
+            </View>
+          </View>
+        ) : (
+          <Button title="Переименовать команду" kind="ghost" icon="create-outline" onPress={() => setRenaming(true)} full />
+        )
+      ) : null}
+
+      {owner ? (
+        <Button
+          title="Удалить команду"
+          kind="danger"
+          icon="trash-outline"
+          full
+          onPress={() =>
+            confirmAsk(`Удалить «${view.company.name}»?`, "Задачи команды пропадут у всех участников.", "Удалить", () =>
+              void run(async () => {
+                await call("company.delete", id);
+                onGone();
+              }),
+            )
+          }
+        />
+      ) : me ? (
+        <Button
+          title="Выйти из команды"
+          kind="danger"
+          icon="exit-outline"
+          full
+          onPress={() =>
+            confirmAsk(`Выйти из «${view.company.name}»?`, undefined, "Выйти", () =>
+              void run(async () => {
+                await call("company.removeMember", id, me.id);
+                onGone();
+              }),
+            )
+          }
+        />
+      ) : null}
+    </View>
   );
 }
 
@@ -530,29 +674,39 @@ const styles = StyleSheet.create({
   root: { flex: 1 },
   scroll: { padding: 16, paddingBottom: 120, gap: 14 },
   title: { fontSize: 32, fontWeight: "800", letterSpacing: -1, marginTop: 6 },
-  card: { borderWidth: 1, borderRadius: radius.lg, padding: 16, gap: 10 },
-  cardTitle: { fontSize: 17, fontWeight: "700" },
-  row: { flexDirection: "row", gap: 10, alignItems: "center" },
-  rowWrap: { flexDirection: "row", gap: 8, flexWrap: "wrap" },
-  flex: { flex: 1, minWidth: 0 },
-  btn: { paddingHorizontal: 18, paddingVertical: 11, borderRadius: radius.pill, alignItems: "center", alignSelf: "flex-start" },
-  chip: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: radius.pill, borderWidth: 1 },
-  pick: { paddingHorizontal: 12, paddingVertical: 7, borderRadius: radius.pill, borderWidth: 1 },
+  lead: { fontSize: 15, lineHeight: 21 },
+  error: { fontWeight: "600", fontSize: 14 },
+  card: { borderWidth: 1, borderRadius: radius.lg, padding: 16, gap: 12 },
+  cardTitle: { fontSize: 17, fontWeight: "800" },
+  mascot: { width: 110, height: 120, alignSelf: "center" },
+  muted: { fontSize: 13 },
+  row: { flexDirection: "row", alignItems: "center", gap: 8 },
+  chips: { gap: 8, paddingRight: 8 },
+  chip: { paddingHorizontal: 14, paddingVertical: 9, borderRadius: radius.pill, borderWidth: 1 },
   input: { borderWidth: 1, borderRadius: radius.md, paddingHorizontal: 14, paddingVertical: 12, fontSize: 16 },
-  headRow: { flexDirection: "row", alignItems: "center", gap: 10 },
-  company: { fontSize: 22, fontWeight: "800" },
-  label: { fontSize: 12, fontWeight: "800", letterSpacing: 0.4, textTransform: "uppercase" },
-  section: { fontSize: 12, fontWeight: "800", letterSpacing: 0.6, paddingLeft: 4, marginTop: 4 },
-  member: { flexDirection: "row", alignItems: "center", gap: 10, paddingVertical: 8, borderBottomWidth: StyleSheet.hairlineWidth },
-  memberName: { fontSize: 15, fontWeight: "700" },
-  action: { fontSize: 13, fontWeight: "700" },
-  addCard: { borderWidth: 1, borderRadius: radius.md, paddingLeft: 14, paddingRight: 6, paddingVertical: 6, gap: 8 },
-  addInput: { flex: 1, fontSize: 16, paddingVertical: 8 },
-  plus: { width: 40, height: 40, borderRadius: 20, alignItems: "center", justifyContent: "center" },
-  plusText: { fontSize: 22, fontWeight: "700" },
-  task: { borderWidth: 1, borderRadius: radius.md, padding: 14 },
-  taskHead: { flexDirection: "row", alignItems: "center", gap: 12 },
-  taskTitle: { fontSize: 16, fontWeight: "600" },
+  multiline: { minHeight: 64, textAlignVertical: "top" },
+  label: { fontSize: 13, fontWeight: "700" },
+  switchRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
+  addBar: { flexDirection: "row", alignItems: "center", gap: 12, borderWidth: 1, borderRadius: radius.lg, padding: 10 },
+  plus: { width: 36, height: 36, borderRadius: 18, alignItems: "center", justifyContent: "center" },
+  note: { flexDirection: "row", gap: 10, alignItems: "flex-start", borderRadius: radius.md, padding: 12 },
+  filter: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: radius.pill, borderWidth: 1 },
+  emptyLine: { fontSize: 14, textAlign: "center", paddingVertical: 10 },
+  groupHead: { flexDirection: "row", alignItems: "center", gap: 8, paddingLeft: 2 },
+  groupDot: { width: 9, height: 9, borderRadius: 5 },
+  groupTitle: { fontSize: 15, fontWeight: "800" },
+  task: { borderWidth: 1, borderRadius: radius.md, overflow: "hidden" },
+  taskMain: { padding: 14, gap: 8 },
+  taskTitle: { flex: 1, fontSize: 16, fontWeight: "700", lineHeight: 21 },
   struck: { textDecorationLine: "line-through" },
-  status: { borderWidth: 1.5, borderRadius: radius.pill, paddingHorizontal: 10, paddingVertical: 6 },
+  tags: { flexDirection: "row", flexWrap: "wrap", gap: 6, alignItems: "center" },
+  statusBar: { flexDirection: "row", alignItems: "center", gap: 6, borderTopWidth: StyleSheet.hairlineWidth, padding: 6 },
+  statusItem: { flex: 1, flexDirection: "row", gap: 4, alignItems: "center", justifyContent: "center", minHeight: 34, borderRadius: 9 },
+  details: { borderTopWidth: StyleSheet.hairlineWidth, padding: 14, gap: 10 },
+  dangerLink: { fontSize: 14, fontWeight: "700", marginTop: 4 },
+  person: { flexDirection: "row", alignItems: "center", gap: 7, paddingLeft: 5, paddingRight: 12, paddingVertical: 5, borderRadius: radius.pill, borderWidth: 1 },
+  nickBox: { flex: 1, flexDirection: "row", alignItems: "center", gap: 4, borderWidth: 1, borderRadius: radius.md, paddingHorizontal: 12, minWidth: 0 },
+  nickInput: { flex: 1, minWidth: 0, fontSize: 16, paddingVertical: 11 },
+  member: { flexDirection: "row", gap: 12, paddingVertical: 12, alignItems: "flex-start" },
+  memberName: { fontSize: 16, fontWeight: "700" },
 });

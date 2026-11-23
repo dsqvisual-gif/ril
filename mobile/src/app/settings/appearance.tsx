@@ -6,6 +6,7 @@ import { useRpc } from "@/account/use-rpc";
 import { useSettings } from "@/theme/settings-context";
 import { THEMES } from "@/theme/themes";
 import { radius, usePalette } from "@/theme/theme";
+import { Icon } from "@/components/ui";
 
 /** The same colour themes as on the website; the choice goes to the account too. */
 export default function AppearanceSettings() {
@@ -52,10 +53,12 @@ export default function AppearanceSettings() {
                     <View style={[styles.line, styles.short, { backgroundColor: o.swatch[2], opacity: 0.35 }]} />
                   </View>
                 </View>
-                <Text style={[styles.name, { color: on ? c.accent : c.ink }]} numberOfLines={1}>
-                  {on ? "✓ " : ""}
-                  {o.name}
-                </Text>
+                <View style={styles.nameRow}>
+                  {on ? <Icon name="checkmark-circle" color={c.accent} size={15} /> : null}
+                  <Text style={[styles.name, { color: on ? c.accent : c.ink }]} numberOfLines={1}>
+                    {o.name}
+                  </Text>
+                </View>
               </Pressable>
             );
           })}
@@ -72,5 +75,6 @@ const styles = StyleSheet.create({
   card: { borderRadius: 8, padding: 7, gap: 5 },
   line: { height: 6, borderRadius: 3 },
   short: { width: "60%" },
+  nameRow: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 4 },
   name: { fontSize: 13, fontWeight: "700", textAlign: "center" },
 });

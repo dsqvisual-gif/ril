@@ -1,13 +1,14 @@
 import { useCallback, useState } from "react";
-import { ActivityIndicator, Pressable, RefreshControl, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { ActivityIndicator, Image, Pressable, RefreshControl, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useFocusEffect } from "expo-router";
-import { format } from "date-fns";
+import { differenceInCalendarDays, format } from "date-fns";
 import { ru } from "date-fns/locale";
 import { useRpc } from "@/account/use-rpc";
 import { confirmAsk, errorText } from "@/components/dialogs";
-import { formatAmount, goalProgress, guessTarget, type GoalKind } from "@/shared/goal-progress";
-import { fromDateKey } from "@/shared/dates";
+import { Button, DateField, Icon, Segmented, SectionLabel, Tag } from "@/components/ui";
+import { formatAmount, GOAL_KINDS, goalProgress, guessTarget, type GoalKind } from "@/shared/goal-progress";
+import { fromDateKey, todayKey } from "@/shared/dates";
 import { radius, usePalette } from "@/theme/theme";
 
 type Entry = { id: string; text: string; amount: number | null; progress: number | null; createdAt: string };
@@ -26,16 +27,21 @@ type Goal = {
   entries: Entry[];
 };
 
-/** Goals with steps, progress and "что сделано" — the same as on the website. */
+function plural(n: number, [one, few, many]: [string, string, string]) {
+  const d = n % 10;
+  const t = n % 100;
+  if (d === 1 && t !== 11) return one;
+  if (d >= 2 && d <= 4 && (t < 12 || t > 14)) return few;
+  return many;
+}
+
+/** Goals, laid out like the website: a short form, then one card per goal. */
 export default function GoalsScreen() {
   const c = usePalette();
   const call = useRpc();
   const [goals, setGoals] = useState<Goal[] | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [open, setOpen] = useState<string | null>(null);
-  const [title, setTitle] = useState("");
-  const [why, setWhy] = useState("");
-  const [busy, setBusy] = useState(false);
+  const [openId, setOpenId] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
 
   const load = useCallback(async () => {
@@ -58,30 +64,28 @@ export default function GoalsScreen() {
   const replace = (g: Goal) => setGoals((prev) => prev?.map((x) => (x.id === g.id ? g : x)) ?? prev);
   const drop = (id: string) => setGoals((prev) => prev?.filter((x) => x.id !== id) ?? prev);
 
-  async function create() {
-    const t = title.trim();
-    if (!t || busy) return;
-    setBusy(true);
+  async function setDone(goal: Goal, done: boolean) {
     try {
-      // Like on the website: "Прочитать 12 книг" becomes a goal counted in numbers.
-      const guess = guessTarget(t);
-      const base = { title: t, why: why.trim() || null };
-      const goal = await call<Goal>("goals.create", guess ? { ...base, kind: "number", ...guess } : { ...base, kind: "feeling" });
-      setGoals((prev) => [goal, ...(prev ?? [])]);
-      setTitle("");
-      setWhy("");
-      setOpen(goal.id);
-      setError(null);
+      replace(await call<Goal>("goals.setDone", goal.id, done));
+      if (done) setOpenId(null);
     } catch (e) {
       setError(errorText(e));
-    } finally {
-      setBusy(false);
     }
   }
 
+  function remove(goal: Goal) {
+    confirmAsk(`Удалить цель «${goal.title}»?`, "Шаги и записи удалятся вместе с ней.", "Удалить", async () => {
+      try {
+        await call("goals.delete", goal.id);
+        drop(goal.id);
+      } catch (e) {
+        setError(errorText(e));
+      }
+    });
+  }
+
   const active = (goals ?? []).filter((g) => !g.doneAt);
-  const done = (goals ?? []).filter((g) => g.doneAt);
-  const guess = guessTarget(title);
+  const achieved = (goals ?? []).filter((g) => g.doneAt);
 
   return (
     <SafeAreaView style={[styles.root, { backgroundColor: c.bg }]} edges={["top"]}>
@@ -90,82 +94,235 @@ export default function GoalsScreen() {
         keyboardShouldPersistTaps="handled"
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); void load(); }} />}
       >
-        <Text style={[styles.title, { color: c.ink }]}>Цели</Text>
-        <View style={[styles.newCard, { backgroundColor: c.surface, borderColor: c.border }]}>
-          <View style={styles.addRow}>
-            <TextInput
-              value={title}
-              onChangeText={setTitle}
-              placeholder="Новая цель, например: прочитать 12 книг"
-              placeholderTextColor={c.inkTertiary}
-              onSubmitEditing={() => void create()}
-              returnKeyType="done"
-              style={[styles.addInput, { color: c.ink }]}
-            />
-            <Pressable
-              onPress={() => void create()}
-              disabled={!title.trim() || busy}
-              style={[styles.round, { backgroundColor: c.accent, opacity: title.trim() ? 1 : 0.5 }]}
-            >
-              <Text style={[styles.roundText, { color: c.onAccent }]}>+</Text>
-            </Pressable>
-          </View>
-          {title.trim() ? (
-            <>
-              <TextInput
-                value={why}
-                onChangeText={setWhy}
-                placeholder="Зачем это вам? (необязательно)"
-                placeholderTextColor={c.inkTertiary}
-                maxLength={300}
-                style={[styles.input, { color: c.ink, borderColor: c.border, backgroundColor: c.surfaceMuted }]}
-              />
-              <Text style={[styles.meta, { color: c.inkSecondary }]}>
-                {guess
-                  ? `Будем считать числом: ${formatAmount(guess.target)} ${guess.unit}`
-                  : "Будем оценивать по ощущениям — способ можно поменять в цели"}
-              </Text>
-            </>
-          ) : null}
+        <View style={{ gap: 4 }}>
+          <Text style={[styles.title, { color: c.ink }]}>Цели</Text>
+          <Text style={[styles.lead, { color: c.inkSecondary }]}>
+            Запиши, к чему идёшь, выбери, как считать прогресс, и отмечай, что уже сделано.
+          </Text>
         </View>
 
-        {error ? <Text style={{ color: c.danger, fontWeight: "600" }}>{error}</Text> : null}
-        {!goals && !error ? <ActivityIndicator color={c.accent} /> : null}
+        <NewGoal
+          onCreate={async (input) => {
+            const goal = await call<Goal>("goals.create", input);
+            setGoals((prev) => [goal, ...(prev ?? [])]);
+            setOpenId(goal.id);
+          }}
+        />
+
+        {error ? <Text style={[styles.error, { color: c.danger }]}>{error}</Text> : null}
+        {!goals && !error ? <ActivityIndicator color={c.accent} style={{ marginTop: 20 }} /> : null}
+
         {goals && goals.length === 0 ? (
-          <Text style={[styles.empty, { color: c.inkSecondary }]}>Запишите первую цель — разбейте на шаги и отмечайте, что уже сделано.</Text>
+          <View style={styles.empty}>
+            <Image source={require("../../../assets/mascot.webp")} style={styles.mascot} resizeMode="contain" />
+            <Text style={[styles.emptyTitle, { color: c.ink }]}>Пока ни одной цели</Text>
+            <Text style={[styles.emptyText, { color: c.inkSecondary }]}>
+              Начни с чего-то конкретного: «Прочитать 5 книг», «Пробежать 10 км», «Выучить 300 слов».
+            </Text>
+          </View>
         ) : null}
 
         {active.map((g) => (
-          <GoalCard key={g.id} goal={g} open={open === g.id} onToggle={() => setOpen(open === g.id ? null : g.id)} onChange={replace} onDelete={drop} />
+          <GoalCard
+            key={g.id}
+            goal={g}
+            open={openId === g.id}
+            onToggle={() => setOpenId((id) => (id === g.id ? null : g.id))}
+            onChange={replace}
+            onDone={() => void setDone(g, true)}
+            onDelete={() => remove(g)}
+          />
         ))}
-        {done.length > 0 ? <Text style={[styles.section, { color: c.inkTertiary }]}>ДОСТИГНУТЫ · {done.length}</Text> : null}
-        {done.map((g) => (
-          <GoalCard key={g.id} goal={g} open={open === g.id} onToggle={() => setOpen(open === g.id ? null : g.id)} onChange={replace} onDelete={drop} />
-        ))}
+
+        {achieved.length > 0 ? (
+          <View style={{ gap: 8, marginTop: 6 }}>
+            <SectionLabel>Достигнуто · {achieved.length}</SectionLabel>
+            {achieved.map((g) => (
+              <View key={g.id} style={[styles.achieved, { backgroundColor: c.surface, borderColor: c.border }]}>
+                <View style={[styles.trophy, { backgroundColor: "rgba(240,180,41,0.18)" }]}>
+                  <Icon name="trophy" color="#d99a06" size={18} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.achievedTitle, { color: c.ink }]} numberOfLines={2}>
+                    {g.title}
+                  </Text>
+                  <Text style={[styles.muted, { color: c.inkSecondary }]}>
+                    {format(new Date(g.doneAt!), "d MMMM yyyy", { locale: ru })}
+                    {g.entries.length ? ` · ${g.entries.length} ${plural(g.entries.length, ["запись", "записи", "записей"])}` : ""}
+                  </Text>
+                </View>
+                <Pressable onPress={() => void setDone(g, false)} hitSlop={6}>
+                  <Text style={[styles.link, { color: c.accent }]}>Вернуть</Text>
+                </Pressable>
+                <Pressable onPress={() => remove(g)} hitSlop={8} accessibilityLabel="Удалить цель">
+                  <Icon name="close" color={c.inkTertiary} />
+                </Pressable>
+              </View>
+            ))}
+          </View>
+        ) : null}
       </ScrollView>
     </SafeAreaView>
   );
 }
 
-function GoalCard(props: { goal: Goal; open: boolean; onToggle: () => void; onChange: (g: Goal) => void; onDelete: (id: string) => void }) {
-  const { goal, open, onToggle, onChange, onDelete } = props;
+type NewGoalInput = { title: string; why: string | null; deadline: string | null; kind: GoalKind; target?: number; unit?: string | null };
+
+function NewGoal({ onCreate }: { onCreate: (input: NewGoalInput) => Promise<void> }) {
+  const c = usePalette();
+  const [title, setTitle] = useState("");
+  const [kind, setKind] = useState<GoalKind>("feeling");
+  const [kindTouched, setKindTouched] = useState(false);
+  const [target, setTarget] = useState("");
+  const [unit, setUnit] = useState("");
+  const [more, setMore] = useState(false);
+  const [why, setWhy] = useState("");
+  const [deadline, setDeadline] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  // "Прочитать 5 книг" — the number and unit are picked up from the title, as on the site.
+  function onTitle(text: string) {
+    setTitle(text);
+    if (kindTouched) return;
+    const guess = guessTarget(text);
+    setKind(guess ? "number" : "feeling");
+    setTarget(guess ? String(guess.target) : "");
+    setUnit(guess?.unit ?? "");
+  }
+
+  async function submit() {
+    if (!title.trim() || busy) return;
+    setBusy(true);
+    setError(null);
+    try {
+      const n = Number(target.replace(",", "."));
+      await onCreate({
+        title: title.trim(),
+        why: why.trim() || null,
+        deadline,
+        kind,
+        ...(kind === "number" ? { target: n, unit: unit.trim() || null } : {}),
+      });
+      setTitle("");
+      setWhy("");
+      setDeadline(null);
+      setTarget("");
+      setUnit("");
+      setKind("feeling");
+      setKindTouched(false);
+      setMore(false);
+    } catch (e) {
+      setError(errorText(e));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  const hint = GOAL_KINDS.find((k) => k.id === kind)?.hint;
+
+  return (
+    <View style={[styles.card, styles.form, { backgroundColor: c.surface, borderColor: c.border }]}>
+      <TextInput
+        value={title}
+        onChangeText={onTitle}
+        placeholder="Новая цель — например, «Прочитать 5 книг»"
+        placeholderTextColor={c.inkTertiary}
+        maxLength={140}
+        returnKeyType="done"
+        onSubmitEditing={() => void submit()}
+        style={[styles.input, { color: c.ink, borderColor: c.border, backgroundColor: c.surfaceMuted }]}
+      />
+      {title.trim() ? (
+        <>
+          <View style={{ gap: 8 }}>
+            <Text style={[styles.label, { color: c.inkSecondary }]}>Прогресс считать</Text>
+            <Segmented
+              items={GOAL_KINDS.map((k) => ({ id: k.id, label: k.label }))}
+              value={kind}
+              onChange={(k) => {
+                setKind(k);
+                setKindTouched(true);
+              }}
+            />
+            {kind === "number" ? (
+              <View style={styles.row}>
+                <TextInput
+                  value={target}
+                  onChangeText={setTarget}
+                  placeholder="5"
+                  keyboardType="decimal-pad"
+                  placeholderTextColor={c.inkTertiary}
+                  style={[styles.input, styles.amount, { color: c.ink, borderColor: c.border, backgroundColor: c.surfaceMuted }]}
+                />
+                <TextInput
+                  value={unit}
+                  onChangeText={setUnit}
+                  placeholder="книг, км, слов"
+                  placeholderTextColor={c.inkTertiary}
+                  maxLength={20}
+                  style={[styles.input, styles.grow, { color: c.ink, borderColor: c.border, backgroundColor: c.surfaceMuted }]}
+                />
+              </View>
+            ) : null}
+            <Text style={[styles.hint, { color: c.inkSecondary }]}>{hint}</Text>
+          </View>
+
+          {more ? (
+            <View style={{ gap: 8 }}>
+              <Text style={[styles.label, { color: c.inkSecondary }]}>Зачем</Text>
+              <TextInput
+                value={why}
+                onChangeText={setWhy}
+                placeholder="Чтобы не забыть, ради чего стараешься"
+                placeholderTextColor={c.inkTertiary}
+                maxLength={300}
+                multiline
+                style={[styles.input, styles.multiline, { color: c.ink, borderColor: c.border, backgroundColor: c.surfaceMuted }]}
+              />
+              <Text style={[styles.label, { color: c.inkSecondary }]}>Срок</Text>
+              <DateField value={deadline} onChange={setDeadline} min={todayKey()} />
+            </View>
+          ) : (
+            <Pressable onPress={() => setMore(true)} hitSlop={6}>
+              <Text style={[styles.link, { color: c.accent }]}>+ срок и зачем</Text>
+            </Pressable>
+          )}
+        </>
+      ) : null}
+      {error ? <Text style={[styles.error, { color: c.danger }]}>{error}</Text> : null}
+      <Button title="Добавить" onPress={() => void submit()} disabled={!title.trim()} busy={busy} full />
+    </View>
+  );
+}
+
+function GoalCard(props: {
+  goal: Goal;
+  open: boolean;
+  onToggle: () => void;
+  onChange: (g: Goal) => void;
+  onDone: () => void;
+  onDelete: () => void;
+}) {
+  const { goal, open, onToggle, onChange, onDone, onDelete } = props;
   const c = usePalette();
   const call = useRpc();
   const progress = goalProgress(goal);
+  const percent = progress.ratio === null ? null : Math.round(progress.ratio * 100);
+  const [step, setStep] = useState("");
   const [text, setText] = useState("");
   const [amount, setAmount] = useState("");
-  const [step, setStep] = useState("");
-  const [measuring, setMeasuring] = useState(false);
-  const [target, setTarget] = useState(goal.target ? String(goal.target) : "");
-  const [unit, setUnit] = useState(goal.unit ?? "");
-  const [busy, setBusy] = useState(false);
+  const [editMeasure, setEditMeasure] = useState(false);
+  const [mKind, setMKind] = useState<GoalKind>(goal.kind);
+  const [mTarget, setMTarget] = useState(goal.target ? String(goal.target) : "");
+  const [mUnit, setMUnit] = useState(goal.unit ?? "");
+  const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const numeric = goal.kind === "number";
-  const stepsDone = goal.steps.filter((s) => s.done).length;
 
-  async function run(fn: string, ...args: unknown[]) {
-    if (busy) return;
-    setBusy(true);
+  async function run(key: string, fn: string, ...args: unknown[]) {
+    if (busy) return false;
+    setBusy(key);
     setError(null);
     try {
       onChange(await call<Goal>(fn, ...args));
@@ -174,16 +331,21 @@ function GoalCard(props: { goal: Goal; open: boolean; onToggle: () => void; onCh
       setError(errorText(e));
       return false;
     } finally {
-      setBusy(false);
+      setBusy(null);
     }
   }
 
+  async function addStep() {
+    if (step.trim() && (await run("step", "goals.addStep", goal.id, step.trim()))) setStep("");
+  }
+
   async function addEntry() {
-    if (!text.trim() && !amount.trim()) return;
     const n = Number(amount.replace(",", "."));
-    const ok = await run("goals.addEntry", goal.id, {
-      text: text.trim() || (numeric && amount ? `+${amount}` : ""),
-      amount: numeric && amount && Number.isFinite(n) ? n : null,
+    const hasAmount = numeric && amount.trim() !== "" && Number.isFinite(n) && n !== 0;
+    if (!text.trim() && !hasAmount) return;
+    const ok = await run("entry", "goals.addEntry", goal.id, {
+      text: text.trim() || `+${formatAmount(n)}${goal.unit ? ` ${goal.unit}` : ""}`,
+      amount: hasAmount ? n : null,
     });
     if (ok) {
       setText("");
@@ -191,202 +353,197 @@ function GoalCard(props: { goal: Goal; open: boolean; onToggle: () => void; onCh
     }
   }
 
-  async function addStep() {
-    if (!step.trim()) return;
-    if (await run("goals.addStep", goal.id, step.trim())) setStep("");
+  async function saveMeasure() {
+    const input = mKind === "number" ? { kind: mKind, target: Number(mTarget.replace(",", ".")), unit: mUnit.trim() || null } : { kind: mKind };
+    if (await run("measure", "goals.setMeasure", goal.id, input)) setEditMeasure(false);
   }
 
-  async function saveMeasure(kind: GoalKind) {
-    const ok = await run(
-      "goals.setMeasure",
-      goal.id,
-      kind === "number" ? { kind, target: Number(target.replace(",", ".")), unit: unit.trim() || null } : { kind },
-    );
-    if (ok) setMeasuring(false);
-  }
-
-  function remove() {
-    confirmAsk(`Удалить цель «${goal.title}»?`, "Шаги и записи тоже удалятся.", "Удалить", async () => {
-      try {
-        await call("goals.delete", goal.id);
-        onDelete(goal.id);
-      } catch (e) {
-        setError(errorText(e));
-      }
-    });
-  }
+  const daysLeft = goal.deadline ? differenceInCalendarDays(fromDateKey(goal.deadline), new Date()) : null;
+  const sub = [progress.ratio === null ? progress.label : numeric ? progress.label : "по твоей оценке"];
+  if (goal.entries.length) sub.push(`${goal.entries.length} ${plural(goal.entries.length, ["запись", "записи", "записей"])}`);
 
   return (
-    <View style={[styles.card, { backgroundColor: c.surface, borderColor: c.border, opacity: goal.doneAt ? 0.8 : 1 }]}>
-      <Pressable onPress={onToggle} style={{ gap: 8 }}>
-        <View style={styles.cardHead}>
-          <Text style={[styles.goalTitle, { color: c.ink }]}>{goal.doneAt ? "🏆 " : ""}{goal.title}</Text>
-          <Text style={[styles.chev, { color: c.inkTertiary }]}>{open ? "⌃" : "⌄"}</Text>
+    <View style={[styles.card, { backgroundColor: c.surface, borderColor: c.border }]}>
+      <Pressable onPress={onToggle} style={styles.head} accessibilityRole="button" accessibilityState={{ expanded: open }}>
+        <View style={{ flex: 1, gap: 6 }}>
+          <Text style={[styles.goalTitle, { color: c.ink }]}>{goal.title}</Text>
+          {goal.deadline ? (
+            <Tag
+              tone={daysLeft !== null && daysLeft < 0 ? "danger" : daysLeft !== null && daysLeft <= 7 ? "warn" : "accent"}
+              text={`до ${format(fromDateKey(goal.deadline), "d MMM", { locale: ru })}${
+                daysLeft === null ? "" : daysLeft < 0 ? " · срок прошёл" : daysLeft === 0 ? " · сегодня" : ` · ${daysLeft} ${plural(daysLeft, ["день", "дня", "дней"])}`
+              }`}
+            />
+          ) : null}
+          <Text style={[styles.muted, { color: c.inkSecondary }]}>{sub.join(" · ")}</Text>
         </View>
-        <View style={[styles.track, { backgroundColor: c.track }]}>
-          <View style={[styles.fill, { backgroundColor: goal.doneAt ? c.success : c.accent, width: `${Math.round((goal.doneAt ? 1 : progress.ratio ?? 0) * 100)}%` }]} />
-        </View>
-        <Text style={[styles.meta, { color: c.inkSecondary }]}>
-          {goal.doneAt ? "Цель достигнута" : progress.label}
-          {goal.steps.length ? ` · шаги ${stepsDone}/${goal.steps.length}` : ""}
-          {goal.deadline ? ` · до ${format(fromDateKey(goal.deadline), "d MMMM", { locale: ru })}` : ""}
-        </Text>
+        {percent !== null ? <Text style={[styles.percent, { color: c.accent }]}>{percent}%</Text> : null}
+        <Icon name={open ? "chevron-up" : "chevron-down"} color={c.inkTertiary} />
       </Pressable>
+      <View style={[styles.track, { backgroundColor: c.track }]}>
+        <View style={[styles.fill, { backgroundColor: percent !== null && percent >= 100 ? c.success : c.accent, width: `${percent ?? 0}%` }]} />
+      </View>
 
       {open ? (
-        <View style={styles.details}>
-          {goal.why ? <Text style={[styles.why, { color: c.inkSecondary }]}>Зачем: {goal.why}</Text> : null}
+        <View style={styles.body}>
+          {goal.why ? (
+            <View style={[styles.why, { backgroundColor: c.tintWarn }]}>
+              <Text style={{ color: c.warnInk, fontSize: 14, lineHeight: 20 }}>
+                <Text style={{ fontWeight: "700" }}>Зачем: </Text>
+                {goal.why}
+              </Text>
+            </View>
+          ) : null}
 
-          {/* How progress is measured */}
-          {!goal.doneAt && !numeric ? (
-            <View style={{ gap: 6 }}>
-              <Text style={[styles.label, { color: c.inkSecondary }]}>Насколько вы ближе к цели?</Text>
+          {!numeric ? (
+            <View style={styles.block}>
+              <SectionLabel>Насколько ты ближе к цели</SectionLabel>
               <View style={styles.scale}>
-                {[0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100].map((v) => {
-                  const on = (goal.selfProgress ?? -1) >= v && goal.selfProgress !== null;
+                {[10, 20, 30, 40, 50, 60, 70, 80, 90, 100].map((v) => {
+                  const on = goal.selfProgress !== null && goal.selfProgress >= v;
                   return (
                     <Pressable
                       key={v}
-                      onPress={() => void run("goals.setSelfProgress", goal.id, v)}
+                      onPress={() => void run("feeling", "goals.setSelfProgress", goal.id, goal.selfProgress === v ? v - 10 : v)}
                       style={[styles.scaleCell, { backgroundColor: on ? c.accent : c.track }]}
                       accessibilityLabel={`${v}%`}
                     />
                   );
                 })}
               </View>
-              <Text style={[styles.small, { color: c.inkTertiary }]}>
-                {goal.selfProgress === null ? "Нажмите на шкалу" : `${goal.selfProgress}% по вашей оценке`}
+              <Text style={[styles.hint, { color: c.inkSecondary }]}>
+                {goal.selfProgress === null ? "Нажми на шкалу — честно отметь, как ощущаешь движение." : `${goal.selfProgress}% — можно менять в любой момент.`}
               </Text>
             </View>
           ) : null}
 
-          {measuring ? (
-            <View style={[styles.box, { borderColor: c.border, backgroundColor: c.surfaceMuted }]}>
-              <Text style={[styles.label, { color: c.inkSecondary }]}>Сколько нужно</Text>
-              <View style={styles.row}>
-                <TextInput
-                  value={target}
-                  onChangeText={setTarget}
-                  placeholder="12"
-                  keyboardType="decimal-pad"
-                  placeholderTextColor={c.inkTertiary}
-                  style={[styles.amount, { color: c.ink, borderColor: c.border, backgroundColor: c.surface }]}
-                />
-                <TextInput
-                  value={unit}
-                  onChangeText={setUnit}
-                  placeholder="книг, км, раз…"
-                  placeholderTextColor={c.inkTertiary}
-                  maxLength={20}
-                  style={[styles.entryInput, { color: c.ink, borderColor: c.border, backgroundColor: c.surface }]}
-                />
-              </View>
-              <View style={styles.rowWrap}>
-                <Chip title="Сохранить числом" on onPress={() => void saveMeasure("number")} />
-                <Chip title="По ощущениям" onPress={() => void saveMeasure("feeling")} />
-                <Chip title="Отмена" onPress={() => setMeasuring(false)} />
-              </View>
-            </View>
-          ) : !goal.doneAt ? (
-            <Pressable onPress={() => setMeasuring(true)} hitSlop={6}>
-              <Text style={[styles.link, { color: c.accent }]}>
-                {numeric ? "Изменить, сколько нужно" : "Считать в цифрах"}
-              </Text>
-            </Pressable>
-          ) : null}
-
-          {/* Steps */}
-          <View style={{ gap: 6 }}>
-            <Text style={[styles.label, { color: c.inkSecondary }]}>Шаги</Text>
-            {goal.steps.map((s) => (
+          <View style={styles.block}>
+            <SectionLabel>План по шагам</SectionLabel>
+            {goal.steps.map((s, i) => (
               <View key={s.id} style={styles.stepRow}>
                 <Pressable
-                  onPress={() => void run("goals.toggleStep", s.id)}
-                  style={[styles.check, { borderColor: s.done ? c.success : c.inkTertiary, backgroundColor: s.done ? c.success : "transparent" }]}
+                  onPress={() => void run(s.id, "goals.toggleStep", s.id)}
+                  hitSlop={6}
                   accessibilityRole="checkbox"
                   accessibilityLabel={`Шаг: ${s.title}`}
                   accessibilityState={{ checked: s.done }}
+                  style={[styles.check, { borderColor: s.done ? c.success : c.inkTertiary, backgroundColor: s.done ? c.success : "transparent" }]}
                 >
-                  {s.done ? <Text style={styles.checkMark}>✓</Text> : null}
+                  {s.done ? <Icon name="checkmark" color="#fff" size={15} /> : null}
                 </Pressable>
+                <Tag tone="accent" text={`Шаг ${i + 1}`} />
                 <Text style={[styles.stepText, { color: s.done ? c.inkTertiary : c.ink }, s.done && styles.struck]}>{s.title}</Text>
-                <Pressable onPress={() => void run("goals.deleteStep", s.id)} hitSlop={8}>
-                  <Text style={{ color: c.inkTertiary, fontSize: 18 }}>×</Text>
+                <Pressable onPress={() => void run(s.id, "goals.deleteStep", s.id)} hitSlop={8} accessibilityLabel={`Удалить шаг ${i + 1}`}>
+                  <Icon name="close" color={c.inkTertiary} size={17} />
                 </Pressable>
               </View>
             ))}
-            {!goal.doneAt ? (
-              <View style={styles.row}>
-                <TextInput
-                  value={step}
-                  onChangeText={setStep}
-                  onSubmitEditing={() => void addStep()}
-                  placeholder="Новый шаг"
-                  placeholderTextColor={c.inkTertiary}
-                  style={[styles.entryInput, { color: c.ink, borderColor: c.border, backgroundColor: c.surfaceMuted }]}
-                />
-                <Pressable onPress={() => void addStep()} style={[styles.round, { backgroundColor: c.accent, opacity: step.trim() ? 1 : 0.5 }]}>
-                  <Text style={[styles.roundText, { color: c.onAccent }]}>+</Text>
-                </Pressable>
-              </View>
-            ) : null}
+            <View style={styles.row}>
+              <TextInput
+                value={step}
+                onChangeText={setStep}
+                onSubmitEditing={() => void addStep()}
+                placeholder={`Шаг ${goal.steps.length + 1} — что нужно сделать`}
+                placeholderTextColor={c.inkTertiary}
+                maxLength={140}
+                style={[styles.input, styles.grow, { color: c.ink, borderColor: c.border, backgroundColor: c.surfaceMuted }]}
+              />
+              <Button title="Добавить" kind="secondary" small onPress={() => void addStep()} disabled={!step.trim()} busy={busy === "step"} />
+            </View>
           </View>
 
-          {/* What was done */}
-          <View style={{ gap: 6 }}>
-            <Text style={[styles.label, { color: c.inkSecondary }]}>Что сделано</Text>
-            {!goal.doneAt ? (
+          <View style={styles.block}>
+            <SectionLabel>Что сделано</SectionLabel>
+            {numeric ? (
               <View style={styles.row}>
-                {numeric ? (
-                  <TextInput
-                    value={amount}
-                    onChangeText={setAmount}
-                    placeholder={goal.unit ? `+ ${goal.unit}` : "+ сколько"}
-                    placeholderTextColor={c.inkTertiary}
-                    keyboardType="decimal-pad"
-                    style={[styles.amount, { color: c.ink, borderColor: c.border, backgroundColor: c.surfaceMuted }]}
-                  />
-                ) : null}
+                <Text style={{ color: c.accent, fontSize: 18, fontWeight: "800" }}>+</Text>
                 <TextInput
-                  value={text}
-                  onChangeText={setText}
-                  onSubmitEditing={() => void addEntry()}
-                  placeholder="Что получилось?"
+                  value={amount}
+                  onChangeText={setAmount}
+                  placeholder="0"
+                  keyboardType="decimal-pad"
                   placeholderTextColor={c.inkTertiary}
-                  style={[styles.entryInput, { color: c.ink, borderColor: c.border, backgroundColor: c.surfaceMuted }]}
+                  style={[styles.input, styles.amount, { color: c.ink, borderColor: c.border, backgroundColor: c.surfaceMuted }]}
                 />
-                <Pressable onPress={() => void addEntry()} style={[styles.round, { backgroundColor: c.accent, opacity: busy ? 0.6 : 1 }]}>
-                  <Text style={[styles.roundText, { color: c.onAccent }]}>✓</Text>
-                </Pressable>
+                <Text style={{ color: c.inkSecondary, fontSize: 15 }}>{goal.unit ?? ""}</Text>
               </View>
             ) : null}
-            {goal.entries.slice(0, 12).map((e) => (
-              <View key={e.id} style={styles.stepRow}>
-                <Text style={[styles.entry, { color: c.ink }]}>
-                  <Text style={{ color: c.inkTertiary }}>{format(new Date(e.createdAt), "d MMM", { locale: ru })} · </Text>
-                  {e.amount !== null ? `+${formatAmount(e.amount)}${goal.unit ? ` ${goal.unit}` : ""} ` : ""}
+            <TextInput
+              value={text}
+              onChangeText={setText}
+              placeholder="Что сегодня сделано для этой цели?"
+              placeholderTextColor={c.inkTertiary}
+              maxLength={500}
+              multiline
+              style={[styles.input, styles.multiline, { color: c.ink, borderColor: c.border, backgroundColor: c.surfaceMuted }]}
+            />
+            <Button title="Записать" onPress={() => void addEntry()} busy={busy === "entry"} disabled={!text.trim() && !amount.trim()} full />
+            {goal.entries.slice(0, 20).map((e) => (
+              <View key={e.id} style={styles.entry}>
+                <View style={[styles.dot, { backgroundColor: c.accent }]} />
+                <Text style={[styles.entryText, { color: c.ink }]}>
+                  <Text style={{ color: c.inkTertiary }}>{format(new Date(e.createdAt), "d MMM", { locale: ru })}   </Text>
+                  {e.amount !== null ? <Text style={{ color: c.success, fontWeight: "800" }}>+{formatAmount(e.amount)} </Text> : null}
                   {e.text}
                 </Text>
-                <Pressable onPress={() => void run("goals.deleteEntry", e.id)} hitSlop={8}>
-                  <Text style={{ color: c.inkTertiary, fontSize: 18 }}>×</Text>
+                <Pressable onPress={() => void run(e.id, "goals.deleteEntry", e.id)} hitSlop={8} accessibilityLabel="Удалить запись">
+                  <Icon name="close" color={c.inkTertiary} size={16} />
                 </Pressable>
               </View>
             ))}
           </View>
 
-          {error ? <Text style={{ color: c.danger, fontWeight: "600" }}>{error}</Text> : null}
-
-          <View style={styles.rowWrap}>
-            <Pressable
-              onPress={() => void run("goals.setDone", goal.id, !goal.doneAt)}
-              style={[styles.pill, { borderColor: goal.doneAt ? c.border : c.success }]}
-            >
-              <Text style={{ color: goal.doneAt ? c.inkSecondary : c.success, fontWeight: "700" }}>
-                {goal.doneAt ? "Вернуть в работу" : "Цель достигнута 🎉"}
+          {editMeasure ? (
+            <View style={[styles.measure, { backgroundColor: c.surfaceMuted }]}>
+              <Segmented items={GOAL_KINDS.map((k) => ({ id: k.id, label: k.label }))} value={mKind} onChange={setMKind} />
+              {mKind === "number" ? (
+                <View style={styles.row}>
+                  <TextInput
+                    value={mTarget}
+                    onChangeText={setMTarget}
+                    placeholder="5"
+                    keyboardType="decimal-pad"
+                    placeholderTextColor={c.inkTertiary}
+                    style={[styles.input, styles.amount, { color: c.ink, borderColor: c.border, backgroundColor: c.surface }]}
+                  />
+                  <TextInput
+                    value={mUnit}
+                    onChangeText={setMUnit}
+                    placeholder="книг, км, слов"
+                    placeholderTextColor={c.inkTertiary}
+                    style={[styles.input, styles.grow, { color: c.ink, borderColor: c.border, backgroundColor: c.surface }]}
+                  />
+                </View>
+              ) : null}
+              <Text style={[styles.hint, { color: c.inkSecondary }]}>{GOAL_KINDS.find((k) => k.id === mKind)?.hint}</Text>
+              <View style={styles.row}>
+                <Button title="Сохранить" kind="secondary" small onPress={() => void saveMeasure()} busy={busy === "measure"} disabled={mKind === "number" && !(Number(mTarget.replace(",", ".")) > 0)} />
+                <Pressable onPress={() => setEditMeasure(false)} hitSlop={6}>
+                  <Text style={[styles.link, { color: c.inkSecondary }]}>Отмена</Text>
+                </Pressable>
+              </View>
+            </View>
+          ) : (
+            <Pressable onPress={() => setEditMeasure(true)} hitSlop={6}>
+              <Text style={[styles.measureLink, { color: c.accent }]}>
+                Как считается прогресс: {GOAL_KINDS.find((k) => k.id === goal.kind)?.label.toLowerCase()}
+                {numeric && goal.target ? ` (${formatAmount(goal.target)}${goal.unit ? ` ${goal.unit}` : ""})` : ""} · изменить
               </Text>
             </Pressable>
-            <Pressable onPress={remove} style={[styles.pill, { borderColor: c.border }]}>
-              <Text style={{ color: c.danger, fontWeight: "700" }}>Удалить</Text>
+          )}
+
+          {percent !== null && percent >= 100 ? (
+            <Text style={[styles.reached, { color: c.success }]}>Похоже, цель достигнута — отметь это!</Text>
+          ) : null}
+          {error ? <Text style={[styles.error, { color: c.danger }]}>{error}</Text> : null}
+
+          <View style={[styles.footer, { borderTopColor: c.border }]}>
+            <Pressable onPress={onDone} style={[styles.doneBtn, { backgroundColor: c.success }]}>
+              <Icon name="trophy-outline" color="#fff" size={17} />
+              <Text style={styles.doneText}>Цель достигнута</Text>
+            </Pressable>
+            <Pressable onPress={onDelete} hitSlop={6}>
+              <Text style={[styles.link, { color: c.danger }]}>Удалить цель</Text>
             </Pressable>
           </View>
         </View>
@@ -395,52 +552,51 @@ function GoalCard(props: { goal: Goal; open: boolean; onToggle: () => void; onCh
   );
 }
 
-function Chip({ title, onPress, on }: { title: string; onPress: () => void; on?: boolean }) {
-  const c = usePalette();
-  return (
-    <Pressable onPress={onPress} style={[styles.chip, on ? { backgroundColor: c.accent } : { borderWidth: 1, borderColor: c.border }]}>
-      <Text style={{ color: on ? c.onAccent : c.ink, fontWeight: "700", fontSize: 13 }}>{title}</Text>
-    </Pressable>
-  );
-}
-
 const styles = StyleSheet.create({
   root: { flex: 1 },
   scroll: { padding: 16, paddingBottom: 120, gap: 14 },
   title: { fontSize: 32, fontWeight: "800", letterSpacing: -1, marginTop: 6 },
-  newCard: { borderWidth: 1, borderRadius: radius.md, padding: 6, paddingLeft: 14, gap: 8 },
-  addRow: { flexDirection: "row", alignItems: "center", gap: 8 },
-  addInput: { flex: 1, fontSize: 16, paddingVertical: 8 },
-  input: { borderWidth: 1, borderRadius: radius.sm, paddingHorizontal: 10, paddingVertical: 10, fontSize: 15, marginRight: 8 },
-  round: { width: 40, height: 40, borderRadius: 20, alignItems: "center", justifyContent: "center" },
-  roundText: { fontSize: 20, fontWeight: "700" },
-  empty: { fontSize: 15, textAlign: "center", marginTop: 20, lineHeight: 21 },
-  section: { fontSize: 12, fontWeight: "800", letterSpacing: 0.6, paddingLeft: 4, marginTop: 6 },
+  lead: { fontSize: 15, lineHeight: 21 },
+  error: { fontWeight: "600", fontSize: 14 },
   card: { borderWidth: 1, borderRadius: radius.lg, padding: 16, gap: 12 },
-  cardHead: { flexDirection: "row", alignItems: "flex-start", gap: 8 },
-  goalTitle: { flex: 1, fontSize: 17, fontWeight: "700" },
-  chev: { fontSize: 18 },
-  track: { height: 8, borderRadius: 4, overflow: "hidden" },
-  fill: { height: "100%", borderRadius: 4 },
-  meta: { fontSize: 13, paddingBottom: 4 },
-  details: { gap: 14 },
-  why: { fontSize: 14, lineHeight: 20 },
-  label: { fontSize: 12, fontWeight: "800", letterSpacing: 0.4, textTransform: "uppercase" },
-  small: { fontSize: 13 },
+  form: { gap: 14 },
+  input: { borderWidth: 1, borderRadius: radius.md, paddingHorizontal: 14, paddingVertical: 12, fontSize: 16 },
+  multiline: { minHeight: 70, textAlignVertical: "top" },
+  amount: { width: 90, textAlign: "center" },
+  grow: { flex: 1, minWidth: 0 },
+  row: { flexDirection: "row", alignItems: "center", gap: 8 },
+  label: { fontSize: 13, fontWeight: "700" },
+  hint: { fontSize: 13, lineHeight: 18 },
   link: { fontSize: 14, fontWeight: "700" },
+  empty: { alignItems: "center", gap: 8, paddingVertical: 20 },
+  mascot: { width: 120, height: 140 },
+  emptyTitle: { fontSize: 18, fontWeight: "800" },
+  emptyText: { fontSize: 14, lineHeight: 20, textAlign: "center", maxWidth: 300 },
+  head: { flexDirection: "row", alignItems: "flex-start", gap: 10 },
+  goalTitle: { fontSize: 18, fontWeight: "800", letterSpacing: -0.2 },
+  percent: { fontSize: 17, fontWeight: "800" },
+  muted: { fontSize: 13 },
+  track: { height: 6, borderRadius: 3, overflow: "hidden" },
+  fill: { height: "100%", borderRadius: 3 },
+  body: { gap: 18, paddingTop: 4 },
+  why: { borderRadius: radius.sm, paddingHorizontal: 12, paddingVertical: 10 },
+  block: { gap: 10 },
   scale: { flexDirection: "row", gap: 4 },
-  scaleCell: { flex: 1, height: 26, borderRadius: 6 },
-  box: { borderWidth: 1, borderRadius: radius.md, padding: 12, gap: 10 },
-  row: { flexDirection: "row", gap: 8, alignItems: "center" },
-  rowWrap: { flexDirection: "row", gap: 8, flexWrap: "wrap" },
-  stepRow: { flexDirection: "row", alignItems: "center", gap: 10, minHeight: 32 },
-  check: { width: 24, height: 24, borderRadius: 12, borderWidth: 2, alignItems: "center", justifyContent: "center" },
-  checkMark: { color: "#fff", fontSize: 13, fontWeight: "900" },
-  stepText: { flex: 1, fontSize: 15 },
+  scaleCell: { flex: 1, height: 28, borderRadius: 6 },
+  stepRow: { flexDirection: "row", alignItems: "center", gap: 10, minHeight: 34 },
+  check: { width: 26, height: 26, borderRadius: 13, borderWidth: 2, alignItems: "center", justifyContent: "center" },
+  stepText: { flex: 1, fontSize: 15, lineHeight: 20 },
   struck: { textDecorationLine: "line-through" },
-  amount: { width: 84, borderWidth: 1, borderRadius: radius.sm, paddingHorizontal: 10, paddingVertical: 10, fontSize: 15 },
-  entryInput: { flex: 1, minWidth: 0, borderWidth: 1, borderRadius: radius.sm, paddingHorizontal: 10, paddingVertical: 10, fontSize: 15 },
-  entry: { flex: 1, fontSize: 14, lineHeight: 20 },
-  pill: { borderWidth: 1.5, borderRadius: radius.pill, paddingHorizontal: 14, paddingVertical: 8 },
-  chip: { paddingHorizontal: 12, paddingVertical: 8, borderRadius: radius.pill },
+  entry: { flexDirection: "row", alignItems: "flex-start", gap: 10 },
+  dot: { width: 7, height: 7, borderRadius: 4, marginTop: 7 },
+  entryText: { flex: 1, fontSize: 14, lineHeight: 20 },
+  measure: { borderRadius: radius.md, padding: 12, gap: 10 },
+  measureLink: { fontSize: 13, fontWeight: "700", textAlign: "center" },
+  reached: { fontSize: 15, fontWeight: "800", textAlign: "center" },
+  footer: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", borderTopWidth: StyleSheet.hairlineWidth, paddingTop: 14 },
+  doneBtn: { flexDirection: "row", alignItems: "center", gap: 7, paddingHorizontal: 18, minHeight: 44, borderRadius: radius.pill },
+  doneText: { color: "#fff", fontWeight: "800", fontSize: 15 },
+  achieved: { flexDirection: "row", alignItems: "center", gap: 12, borderWidth: 1, borderRadius: radius.md, padding: 12 },
+  trophy: { width: 36, height: 36, borderRadius: 11, alignItems: "center", justifyContent: "center" },
+  achievedTitle: { fontSize: 15, fontWeight: "700" },
 });

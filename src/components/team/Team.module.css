@@ -874,3 +874,13 @@ button:disabled {
     display: none;
   }
 }
+
+.memberHint {
+  margin: 0;
+  padding: 14px 16px;
+  border-radius: var(--radius-sm);
+  background: var(--accent-soft);
+  color: var(--ink);
+  font-size: 14px;
+  line-height: 1.45;
+}

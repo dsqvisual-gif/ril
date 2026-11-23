@@ -15,8 +15,8 @@ import { deadlineInfo, initials, personName } from "./team-utils";
 import styles from "./Team.module.css";
 
 const COLUMNS: { status: CompanyTaskStatus; label: string }[] = [
-  { status: "todo", label: "К работе" },
-  { status: "doing", label: "В работе" },
+  { status: "todo", label: "Не начато" },
+  { status: "doing", label: "В процессе" },
   { status: "done", label: "Готово" },
 ];
 
@@ -27,9 +27,10 @@ type Props = {
 };
 
 export function TeamTasks({ view, busy, run }: Props) {
-  const [filter, setFilter] = useState<string>("all");
-  const active = view.members.filter((m) => m.status === "active");
   const manager = view.me.role === "owner" || view.me.role === "admin";
+  // Members start with their own tasks; admins see the whole board.
+  const [filter, setFilter] = useState<string>(manager ? "all" : view.me.userId);
+  const active = view.members.filter((m) => m.status === "active");
 
   const tasks = useMemo(() => {
     if (filter === "all") return view.tasks;
@@ -39,7 +40,14 @@ export function TeamTasks({ view, busy, run }: Props) {
 
   return (
     <div className={styles.panel}>
-      <NewTaskForm view={view} busy={busy === "task:new"} run={run} />
+      {manager ? (
+        <NewTaskForm view={view} busy={busy === "task:new"} run={run} />
+      ) : (
+        <p className={styles.memberHint}>
+          Задачи раздают администраторы. Отмечайте у своих задач, как идёт работа: не начато, в процессе
+          или готово.
+        </p>
+      )}
 
       <div className={styles.filters}>
         <select
@@ -77,12 +85,8 @@ export function TeamTasks({ view, busy, run }: Props) {
                   key={task.id}
                   task={task}
                   view={view}
-                  canEdit={manager || task.creatorId === view.me.userId}
-                  canMove={
-                    manager ||
-                    task.creatorId === view.me.userId ||
-                    task.assigneeId === view.me.userId
-                  }
+                  canEdit={manager}
+                  canMove={manager || task.assigneeId === view.me.userId}
                   busy={busy === task.id}
                   run={run}
                 />
@@ -333,7 +337,7 @@ function TaskCard({
               </div>
             </>
           ) : (
-            <p className={styles.muted}>Менять задачу может её автор или администратор.</p>
+            <p className={styles.muted}>Менять задачу могут владелец и администраторы.</p>
           )}
         </div>
       ) : null}
