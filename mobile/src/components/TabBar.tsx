@@ -4,7 +4,7 @@ import * as Haptics from "expo-haptics";
 import { radius, usePalette } from "@/theme/theme";
 
 /** A floating rounded tab bar; the open tab is a blue pill. */
-export function TabBar({ state, descriptors, emitter, navigateToTab, insets }: BottomTabBarProps) {
+export function TabBar({ state, descriptors, emitter, navigateToTab, insets, order }: BottomTabBarProps & { order?: string[] }) {
   const c = usePalette();
   return (
     <View style={[styles.wrap, { paddingBottom: Math.max(insets.bottom, 10), backgroundColor: c.bg }]}>
@@ -12,9 +12,13 @@ export function TabBar({ state, descriptors, emitter, navigateToTab, insets }: B
         style={[styles.bar, { backgroundColor: c.surface, borderColor: c.border }]}
         accessibilityRole="tablist"
       >
-        {state.routes.map((route, index) => {
-          const focused = index === state.index;
+        {[...state.routes]
+          .sort((a, b) => (order ? order.indexOf(a.name) - order.indexOf(b.name) : 0))
+          .map((route) => {
+          const focused = state.routes[state.index]?.key === route.key;
           const { options } = descriptors[route.key];
+          // Tabs of the other mode (mom mode or the usual one) are hidden.
+          if ((options as { href?: unknown }).href === null) return null;
           const label = typeof options.title === "string" ? options.title : route.name;
           const color = focused ? c.onAccent : c.inkSecondary;
           return (

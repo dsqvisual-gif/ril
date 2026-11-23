@@ -1,24 +1,63 @@
-import { Tabs } from "expo-router";
+import { useEffect } from "react";
+import { router, Tabs } from "expo-router";
 import Ionicons from "@expo/vector-icons/Ionicons";
+import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
 import { TabBar } from "@/components/TabBar";
+import { useSettings } from "@/theme/settings-context";
 import { usePalette } from "@/theme/theme";
 
-type IconName = keyof typeof Ionicons.glyphMap;
+type Tab = {
+  name: string;
+  title: string;
+  icon: (focused: boolean, color: string, size: number) => React.ReactNode;
+  /** Shown in the usual mode, in mom mode, or both. */
+  modes: ("usual" | "mom")[];
+};
 
-const TABS: { name: string; title: string; icon: IconName; iconOn: IconName }[] = [
-  { name: "index", title: "Планер", icon: "calendar-outline", iconOn: "calendar" },
-  { name: "goals", title: "Цели", icon: "flag-outline", iconOn: "flag" },
-  { name: "team", title: "Команда", icon: "briefcase-outline", iconOn: "briefcase" },
-  { name: "friends", title: "Друзья", icon: "people-outline", iconOn: "people" },
-  { name: "profile", title: "Профиль", icon: "person-circle-outline", iconOn: "person-circle" },
+function ion(off: keyof typeof Ionicons.glyphMap, on: keyof typeof Ionicons.glyphMap) {
+  return function TabIcon(focused: boolean, color: string, size: number) {
+    return <Ionicons name={focused ? on : off} color={color} size={size} />;
+  };
+}
+function mci(name: keyof typeof MaterialCommunityIcons.glyphMap) {
+  return function TabIcon(_focused: boolean, color: string, size: number) {
+    return <MaterialCommunityIcons name={name} color={color} size={size} />;
+  };
+}
+
+// Declared with the planner first (the opening tab); the bar shows each mode's own order.
+const TABS: Tab[] = [
+  { name: "index", title: "Планер", icon: ion("calendar-outline", "calendar"), modes: ["usual", "mom"] },
+  { name: "baby", title: "Малыш", icon: mci("baby-face-outline"), modes: ["mom"] },
+  { name: "goals", title: "Цели", icon: ion("flag-outline", "flag"), modes: ["usual"] },
+  { name: "team", title: "Команда", icon: ion("briefcase-outline", "briefcase"), modes: ["usual"] },
+  { name: "friends", title: "Друзья", icon: ion("people-outline", "people"), modes: ["usual"] },
+  { name: "food", title: "Прикорм", icon: mci("food-apple-outline"), modes: ["mom"] },
+  { name: "stats", title: "Статистика", icon: ion("stats-chart-outline", "stats-chart"), modes: ["mom"] },
+  { name: "profile", title: "Профиль", icon: ion("person-circle-outline", "person-circle"), modes: ["usual", "mom"] },
 ];
+
+// As in the website's menu.
+const ORDER = {
+  usual: ["index", "goals", "team", "friends", "profile"],
+  mom: ["baby", "index", "food", "stats", "profile"],
+};
 
 export default function TabsLayout() {
   const c = usePalette();
+  const { settings } = useSettings();
+  const mode = settings.mom ? "mom" : "usual";
+
+  // In mom mode the app opens on the baby, as the website does.
+  useEffect(() => {
+    if (mode === "mom") router.navigate("/baby");
+  }, [mode]);
 
   return (
     <Tabs
-      tabBar={(props) => <TabBar {...props} />}
+      // Switching the mode starts the tabs afresh, on the mode's first tab.
+      key={mode}
+      tabBar={(props) => <TabBar {...props} order={ORDER[mode]} />}
       screenOptions={{ headerShown: false, sceneStyle: { backgroundColor: c.bg } }}
     >
       {TABS.map((t) => (
@@ -27,9 +66,8 @@ export default function TabsLayout() {
           name={t.name}
           options={{
             title: t.title,
-            tabBarIcon: ({ focused, color, size }) => (
-              <Ionicons name={focused ? t.iconOn : t.icon} color={String(color)} size={size} />
-            ),
+            href: t.modes.includes(mode) ? undefined : null,
+            tabBarIcon: ({ focused, color, size }) => t.icon(focused, String(color), size),
           }}
         />
       ))}

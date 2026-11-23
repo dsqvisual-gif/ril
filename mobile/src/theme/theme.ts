@@ -98,11 +98,36 @@ export const DARK_THEMES: ThemeId[] = ["dark", "midnight"];
 export function usePalette(): Palette {
   const system = useColorScheme();
   const { settings } = useSettings();
-  if (settings.theme === "system") return system === "dark" ? dark : light;
-  return PALETTES[settings.theme] ?? light;
+  const base = settings.theme === "system" ? (system === "dark" ? dark : light) : (PALETTES[settings.theme] ?? light);
+  if (!settings.mom) return base;
+  return base === dark || base === PALETTES.midnight ? momDark(base) : MOM;
+}
+
+/** Mom mode, as on the website: warm and soft over any light theme. */
+const MOM: Palette = {
+  ...light,
+  bg: "#fff6f1",
+  surfaceMuted: "#fff3ee",
+  track: "#f6e6e0",
+  accent: "#e8637a",
+  accentSoft: "rgba(232,99,122,0.13)",
+  tintWarn: "#fff3e3",
+  border: "rgba(120,60,40,0.09)",
+};
+
+const momDarkCache = new Map<Palette, Palette>();
+function momDark(base: Palette): Palette {
+  let p = momDarkCache.get(base);
+  if (!p) {
+    p = { ...base, accent: "#ff8fa3", accentSoft: "rgba(255,143,163,0.16)", onAccent: "#2a1016" };
+    momDarkCache.set(base, p);
+  }
+  return p;
 }
 
 export function useIsDark(): boolean {
-  const c = usePalette();
-  return c === dark || c === PALETTES.midnight;
+  const system = useColorScheme();
+  const { settings } = useSettings();
+  if (settings.theme === "system") return system === "dark";
+  return settings.theme === "dark" || settings.theme === "midnight";
 }

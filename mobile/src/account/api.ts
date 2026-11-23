@@ -137,7 +137,6 @@ export type TaskInput = {
 
 export type ToggleResult = { task: Task; newlyUnlocked: string[] };
 
-export type FriendOption = { id: string; name: string; username: string; alias: string | null; avatar: string | null };
 
 export type AccountRow = {
   id: string;
@@ -150,3 +149,5 @@ export type AccountRow = {
 };
 
 export type FriendsBoard = { me: { id: string; name: string; username: string }; accounts: AccountRow[] };
+
+export type FriendOption = { id: string; name: string; username: string; alias: string | null; avatar: string | null };

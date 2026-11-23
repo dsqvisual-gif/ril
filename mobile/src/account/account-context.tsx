@@ -45,6 +45,9 @@ export function AccountProvider({ children }: { children: React.ReactNode }) {
       setUser(next);
       if (next) await saveSetting(db, USER_CACHE, JSON.stringify(next));
       else await db.deleteSetting(USER_CACHE);
+      // Mom mode follows the account, so the colours and tabs match the website.
+      const mom = Boolean(next?.momMode);
+      if ((await db.getSetting("mom")) !== String(mom)) await updateSetting("mom", mom);
       // A theme picked on the website (or another phone) comes here too, once.
       const theme = next?.theme;
       if (isThemeId(theme) && (await db.getSetting(THEME_SEEN)) !== theme) {

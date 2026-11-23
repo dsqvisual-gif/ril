@@ -45,6 +45,20 @@ export default function SettingsHub() {
           <SettingsRow icon="qr-code-outline" tone="#0ca678" title="Мой QR для друзей" onPress={() => router.push("/settings/qr")} last />
         </SettingsGroup>
 
+        <SettingsGroup title="Режим">
+          <SettingsRow
+            icon="heart-outline"
+            tone="#e8637a"
+            title="Режим мамы"
+            value={user?.momMode ? "Включён" : "Выключен"}
+            onPress={() => router.push("/settings/modes")}
+            last={!user?.momMode}
+          />
+          {user?.momMode ? (
+            <SettingsRow icon="medkit-outline" tone="#e8637a" title="Прививки и визиты" onPress={() => router.push("/settings/health")} last />
+          ) : null}
+        </SettingsGroup>
+
         <SettingsGroup title="Приложение">
           <SettingsRow
             icon="color-palette-outline"

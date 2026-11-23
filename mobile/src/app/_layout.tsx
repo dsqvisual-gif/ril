@@ -92,6 +92,8 @@ function ThemedStack() {
           <Stack.Screen name="settings/profile" />
           <Stack.Screen name="settings/notifications" />
           <Stack.Screen name="settings/qr" />
+          <Stack.Screen name="settings/modes" />
+          <Stack.Screen name="settings/health" />
           <Stack.Screen name="settings/achievements" />
         </Stack.Protected>
         <Stack.Protected guard={!signedIn}>

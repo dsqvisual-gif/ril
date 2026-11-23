@@ -7,6 +7,8 @@ import * as account from "@/lib/actions/account";
 import * as avatar from "@/lib/actions/avatar";
 import * as reminders from "@/lib/actions/reminders";
 import * as app from "@/lib/mobile/app-actions";
+import * as baby from "@/lib/actions/baby";
+import * as care from "@/lib/actions/baby-care";
 import { claimAchievements } from "@/lib/actions/achievements";
 import { syncAchievements } from "@/lib/achievement-stats";
 import { mobileJson, mobileUserId, preflight } from "@/lib/mobile-auth";
@@ -88,6 +90,34 @@ const ACTIONS: Record<string, (...args: never[]) => Promise<unknown>> = {
   "reminders.update": reminders.updateReminder,
   "reminders.delete": reminders.deleteReminder,
   "reminders.setDigest": reminders.setDigest,
+  "baby.children": baby.listChildren,
+  "baby.saveChild": baby.saveChild,
+  "baby.deleteChild": baby.deleteChild,
+  "baby.events": baby.listEvents,
+  "baby.start": baby.startTimer,
+  "baby.stop": baby.stopTimer,
+  "baby.addEvent": baby.addEvent,
+  "baby.updateEvent": baby.updateEvent,
+  "baby.deleteEvent": baby.deleteEvent,
+  "baby.growth": baby.listGrowth,
+  "baby.addGrowth": baby.addGrowth,
+  "baby.deleteGrowth": baby.deleteGrowth,
+  "baby.foods": baby.listFoods,
+  "baby.addFood": baby.addFood,
+  "baby.addFoodTry": baby.addFoodTry,
+  "baby.setFoodStatus": baby.setFoodStatus,
+  "baby.deleteFood": baby.deleteFood,
+  "baby.deleteFoodTry": baby.deleteFoodTry,
+  "baby.caregivers": care.listCaregivers,
+  "baby.inviteCaregiver": care.inviteCaregiver,
+  "baby.removeCaregiver": care.removeCaregiver,
+  "baby.invites": care.listChildInvites,
+  "baby.respondInvite": care.respondChildInvite,
+  "baby.health": care.listHealth,
+  "baby.saveHealth": care.saveHealth,
+  "baby.setHealthDone": care.setHealthDone,
+  "baby.deleteHealth": care.deleteHealth,
+  "baby.leave": care.leaveChild,
 };
 
 export async function POST(request: Request) {
