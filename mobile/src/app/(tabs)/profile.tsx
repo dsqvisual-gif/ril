@@ -2,6 +2,7 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { router } from "expo-router";
 import Constants from "expo-constants";
+import * as Application from "expo-application";
 import { SettingsGroup, SettingsRow } from "@/components/settings/SettingsUI";
 import { useSettings } from "@/theme/settings-context";
 import { useAccount } from "@/account/account-context";
@@ -103,7 +104,8 @@ export default function SettingsHub() {
         </SettingsGroup>
 
         <Text style={[styles.version, { color: c.inkTertiary }]}>
-          Uspeyka {Constants.expoConfig?.version ?? ""}
+          Uspeyka {Application.nativeApplicationVersion ?? Constants.expoConfig?.version ?? ""}
+          {Application.nativeBuildVersion ? ` · сборка ${Application.nativeBuildVersion}` : ""}
         </Text>
       </ScrollView>
     </SafeAreaView>
