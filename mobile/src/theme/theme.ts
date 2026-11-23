@@ -1,5 +1,8 @@
 import { useColorScheme } from "react-native";
 import { useSettings } from "./settings-context";
+import type { ThemeId } from "./themes";
+
+export { THEMES, isThemeId, type ThemeId } from "./themes";
 
 /** The website's colours, as plain values for React Native. */
 export type Palette = {
@@ -67,14 +70,39 @@ const dark: Palette = {
 
 export const radius = { lg: 18, md: 14, sm: 10, pill: 999 };
 
+const tinted = (bg: string, accent: string, accentSoft: string): Palette => ({ ...light, bg, accent, accentSoft });
+
+const PALETTES: Record<ThemeId, Palette> = {
+  light,
+  dark,
+  pink: tinted("#fff0f6", "#e64980", "rgba(230,73,128,0.12)"),
+  lavender: tinted("#f3f0ff", "#7950f2", "rgba(121,80,242,0.12)"),
+  mint: tinted("#ebfbf5", "#0ca678", "rgba(12,166,120,0.12)"),
+  peach: tinted("#fff4e6", "#f76707", "rgba(247,103,7,0.12)"),
+  ocean: tinted("#e7f5ff", "#1971c2", "rgba(25,113,194,0.12)"),
+  midnight: {
+    ...dark,
+    bg: "#0b1530",
+    surface: "#14204a",
+    surfaceMuted: "#1a2959",
+    track: "#24336a",
+    accent: "#74c0fc",
+    accentSoft: "rgba(116,192,252,0.16)",
+    onAccent: "#0b1530",
+  },
+};
+
+export const DARK_THEMES: ThemeId[] = ["dark", "midnight"];
+
 /** Colours for the chosen theme: the phone's own setting unless the person picked one. */
 export function usePalette(): Palette {
   const system = useColorScheme();
   const { settings } = useSettings();
-  const mode = settings.theme === "system" ? system : settings.theme;
-  return mode === "dark" ? dark : light;
+  if (settings.theme === "system") return system === "dark" ? dark : light;
+  return PALETTES[settings.theme] ?? light;
 }
 
 export function useIsDark(): boolean {
-  return usePalette() === dark;
+  const c = usePalette();
+  return c === dark || c === PALETTES.midnight;
 }

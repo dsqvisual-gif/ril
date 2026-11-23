@@ -12,7 +12,7 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { useFocusEffect } from "expo-router";
+import { router, useFocusEffect } from "expo-router";
 import type { AccountRow, FriendsBoard } from "@/account/api";
 import { useRpc } from "@/account/use-rpc";
 import { AccountAvatar } from "@/components/AccountAvatar";
@@ -110,6 +110,11 @@ export default function FriendsScreen() {
             Ваш ник <Text style={{ color: c.accent, fontWeight: "700" }}>@{board.me.username}</Text>. Человека можно найти только по нику.
           </Text>
         ) : null}
+        <Pressable onPress={() => router.push("/settings/qr")} style={[styles.qrBtn, { backgroundColor: c.surface, borderColor: c.border }]}>
+          <Text style={{ fontSize: 20 }}>🔳</Text>
+          <Text style={{ flex: 1, color: c.ink, fontWeight: "700", fontSize: 15 }}>Мой QR — друг добавит вас камерой</Text>
+          <Text style={{ color: c.inkTertiary, fontSize: 22 }}>›</Text>
+        </Pressable>
 
         <TextInput
           value={query}
@@ -225,9 +230,10 @@ function Empty({ text }: { text: string }) {
 
 const styles = StyleSheet.create({
   root: { flex: 1 },
-  scroll: { padding: 16, paddingBottom: 40, gap: 16 },
+  scroll: { padding: 16, paddingBottom: 120, gap: 16 },
   title: { fontSize: 32, fontWeight: "800", letterSpacing: -1, marginTop: 6 },
   lead: { fontSize: 15, lineHeight: 21, marginTop: -8 },
+  qrBtn: { flexDirection: "row", alignItems: "center", gap: 10, borderWidth: 1, borderRadius: radius.md, paddingHorizontal: 14, paddingVertical: 12 },
   search: { borderWidth: 1, borderRadius: radius.md, paddingHorizontal: 14, paddingVertical: 13, fontSize: 16 },
   section: { fontSize: 12, fontWeight: "800", letterSpacing: 0.6, paddingLeft: 14 },
   box: { borderRadius: radius.lg, borderWidth: 1, overflow: "hidden" },

@@ -7,8 +7,8 @@ import { useSettings } from "@/theme/settings-context";
 import { useAccount } from "@/account/account-context";
 import { AccountAvatar } from "@/components/AccountAvatar";
 import { radius, usePalette } from "@/theme/theme";
+import { THEMES } from "@/theme/themes";
 
-const THEME_NAMES = { system: "Как в телефоне", light: "Светлая", dark: "Тёмная" } as const;
 
 export default function SettingsHub() {
   const c = usePalette();
@@ -22,7 +22,7 @@ export default function SettingsHub() {
         <Text style={[styles.title, { color: c.ink }]}>Настройки</Text>
 
         <Pressable
-          onPress={() => router.push("/settings/account")}
+          onPress={() => router.push("/settings/profile")}
           style={({ pressed }) => [
             styles.profile,
             { backgroundColor: pressed ? c.fill : c.surface, borderColor: c.border },
@@ -37,16 +37,27 @@ export default function SettingsHub() {
               {user?.username ? `@${user.username}` : user?.email}
             </Text>
           </View>
-          <Text style={[styles.edit, { color: c.accent }]}>Профиль ›</Text>
+          <Text style={[styles.edit, { color: c.accent }]}>Изменить ›</Text>
         </Pressable>
+
+        <SettingsGroup title="Профиль">
+          <SettingsRow icon="🙂" tone="#ffe8ef" title="Фото, имя и ник" onPress={() => router.push("/settings/profile")} />
+          <SettingsRow icon="🔳" tone="#e6f4ea" title="Мой QR для друзей" onPress={() => router.push("/settings/qr")} last />
+        </SettingsGroup>
 
         <SettingsGroup title="Приложение">
           <SettingsRow
             icon="🎨"
             tone="#e7e4ff"
             title="Оформление"
-            value={THEME_NAMES[settings.theme]}
+            value={settings.theme === "system" ? "Авто" : THEMES.find((t) => t.id === settings.theme)?.name}
             onPress={() => router.push("/settings/appearance")}
+          />
+          <SettingsRow
+            icon="🔔"
+            tone="#dff1ff"
+            title="Уведомления и напоминания"
+            onPress={() => router.push("/settings/notifications")}
             last
           />
         </SettingsGroup>
@@ -61,17 +72,11 @@ export default function SettingsHub() {
           />
         </SettingsGroup>
 
-        <SettingsGroup title="Уведомления">
-          <SettingsRow icon="🔔" tone="#dff1ff" title="Напоминания о делах" value="Скоро" />
-          <SettingsRow icon="🔁" tone="#ddf7e8" title="Регулярные напоминания" value="Скоро" last />
-        </SettingsGroup>
-
         <SettingsGroup title="Аккаунт">
           <SettingsRow
-            icon="☁️"
+            icon="🔐"
             tone="#eceef3"
-            title="Аккаунт Uspeyka"
-            value={user?.email}
+            title="Аккаунт и безопасность"
             onPress={() => router.push("/settings/account")}
           />
           <SettingsRow

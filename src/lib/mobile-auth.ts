@@ -72,12 +72,14 @@ export type MobileUser = {
   email: string;
   avatar: string | null;
   momMode: boolean;
+  /** Colour theme chosen on the site or in the app (src/lib/themes.ts), or null. */
+  theme: string | null;
 };
 
 export async function mobileUser(userId: string): Promise<MobileUser | null> {
   const user = await prisma.user.findUnique({
     where: { id: userId },
-    select: { id: true, name: true, username: true, email: true, image: true, avatarVersion: true, momMode: true },
+    select: { id: true, name: true, username: true, email: true, image: true, avatarVersion: true, momMode: true, theme: true },
   });
   if (!user) return null;
   const avatar = avatarSrc(user);
@@ -89,6 +91,7 @@ export async function mobileUser(userId: string): Promise<MobileUser | null> {
     // Uploaded photos live on our site; make the address absolute for the app.
     avatar: avatar && avatar.startsWith("/") ? `${SITE_URL}${avatar}` : avatar,
     momMode: user.momMode,
+    theme: user.theme,
   };
 }
 

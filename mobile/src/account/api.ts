@@ -8,6 +8,8 @@ export type AccountUser = {
   email: string;
   avatar: string | null;
   momMode: boolean;
+  /** Colour theme chosen on the site or here, or null. */
+  theme?: string | null;
 };
 
 export type Session = { token: string; user: AccountUser };

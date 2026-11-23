@@ -1,6 +1,7 @@
 import type { Store } from "./store-types";
+import { isThemeId, type ThemeId } from "@/theme/themes";
 
-export type ThemePref = "system" | "light" | "dark";
+export type ThemePref = "system" | ThemeId;
 
 export type Settings = {
   name: string;
@@ -16,7 +17,7 @@ export async function loadSettings(store: Store): Promise<Settings> {
   const theme = map.get("theme");
   return {
     name: map.get("name") ?? DEFAULT_SETTINGS.name,
-    theme: theme === "light" || theme === "dark" ? theme : "system",
+    theme: isThemeId(theme) ? theme : "system",
     onboarded: map.get("onboarded") === "true",
   };
 }

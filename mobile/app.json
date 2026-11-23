@@ -39,7 +39,15 @@
       "expo-sqlite",
       "expo-font",
       "expo-secure-store",
-      "expo-web-browser"
+      "expo-web-browser",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Uspeyka берёт фото из галереи, чтобы поставить его на аватар профиля.",
+          "cameraPermission": false,
+          "microphonePermission": false
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true

@@ -4,6 +4,9 @@ import * as friends from "@/lib/actions/friends";
 import * as goals from "@/lib/actions/goals";
 import * as company from "@/lib/actions/company";
 import * as account from "@/lib/actions/account";
+import * as avatar from "@/lib/actions/avatar";
+import * as reminders from "@/lib/actions/reminders";
+import * as app from "@/lib/mobile/app-actions";
 import { claimAchievements } from "@/lib/actions/achievements";
 import { syncAchievements } from "@/lib/achievement-stats";
 import { mobileJson, mobileUserId, preflight } from "@/lib/mobile-auth";
@@ -54,9 +57,17 @@ const ACTIONS: Record<string, (...args: never[]) => Promise<unknown>> = {
   "goals.deleteEntry": goals.deleteGoalEntry,
   "goals.setMeasure": goals.setGoalMeasure,
   "goals.setSelfProgress": goals.setGoalSelfProgress,
+  "goals.addStep": goals.addGoalStep,
+  "goals.toggleStep": goals.toggleGoalStep,
+  "goals.renameStep": goals.renameGoalStep,
+  "goals.deleteStep": goals.deleteGoalStep,
   "company.list": company.listMyCompanies,
   "company.view": company.getCompanyView,
   "company.create": company.createCompany,
+  "company.rename": company.renameCompany,
+  "company.delete": company.deleteCompany,
+  "company.removeMember": company.removeCompanyMember,
+  "company.setRole": company.setCompanyMemberRole,
   "company.invite": company.inviteToCompany,
   "company.respond": company.respondToInvitation,
   "company.createTask": company.createCompanyTask,
@@ -65,6 +76,18 @@ const ACTIONS: Record<string, (...args: never[]) => Promise<unknown>> = {
   "achievements.overview": achievementsOverview,
   "achievements.claim": claimAchievements,
   "account.rename": account.renameMe,
+  "account.profile": app.profile,
+  "account.setTheme": app.setTheme,
+  "account.setUsername": app.setUsername,
+  "account.setMomMode": app.setMomMode,
+  "account.delete": app.deleteMe,
+  "avatar.set": avatar.setAvatar,
+  "avatar.remove": avatar.removeAvatar,
+  "reminders.list": reminders.listReminders,
+  "reminders.create": reminders.createReminder,
+  "reminders.update": reminders.updateReminder,
+  "reminders.delete": reminders.deleteReminder,
+  "reminders.setDigest": reminders.setDigest,
 };
 
 export async function POST(request: Request) {

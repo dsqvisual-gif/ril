@@ -1,5 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useStore } from "@/db/store-types";
+import { useSettings } from "@/theme/settings-context";
+import { isThemeId } from "@/theme/themes";
 import { saveSetting } from "@/db/settings";
 import { fetchMe, type AccountUser, type Session } from "./api";
 import { readToken, writeToken } from "./storage";
@@ -10,6 +12,8 @@ type Ctx = {
   ready: boolean;
   signIn: (session: Session) => Promise<void>;
   signOut: () => Promise<void>;
+  /** Puts a fresh profile in place after a change (name, photo, nickname…). */
+  replaceUser: (user: AccountUser) => Promise<void>;
 };
 
 const AccountContext = createContext<Ctx>({
@@ -18,7 +22,10 @@ const AccountContext = createContext<Ctx>({
   ready: false,
   signIn: async () => {},
   signOut: async () => {},
+  replaceUser: async () => {},
 });
+
+const THEME_SEEN = "account_theme_seen";
 
 const USER_CACHE = "account_user";
 
@@ -28,6 +35,7 @@ const USER_CACHE = "account_user";
  */
 export function AccountProvider({ children }: { children: React.ReactNode }) {
   const db = useStore();
+  const { update: updateSetting } = useSettings();
   const [user, setUser] = useState<AccountUser | null>(null);
   const [token, setToken] = useState<string | null>(null);
   const [ready, setReady] = useState(false);
@@ -37,8 +45,14 @@ export function AccountProvider({ children }: { children: React.ReactNode }) {
       setUser(next);
       if (next) await saveSetting(db, USER_CACHE, JSON.stringify(next));
       else await db.deleteSetting(USER_CACHE);
+      // A theme picked on the website (or another phone) comes here too, once.
+      const theme = next?.theme;
+      if (isThemeId(theme) && (await db.getSetting(THEME_SEEN)) !== theme) {
+        await db.setSetting(THEME_SEEN, theme);
+        await updateSetting("theme", theme);
+      }
     },
-    [db],
+    [db, updateSetting],
   );
 
   useEffect(() => {
@@ -89,7 +103,12 @@ export function AccountProvider({ children }: { children: React.ReactNode }) {
     await db.clearAccount();
   }, [remember, db]);
 
-  const value = useMemo(() => ({ user, token, ready, signIn, signOut }), [user, token, ready, signIn, signOut]);
+  const replaceUser = useCallback((next: AccountUser) => remember(next), [remember]);
+
+  const value = useMemo(
+    () => ({ user, token, ready, signIn, signOut, replaceUser }),
+    [user, token, ready, signIn, signOut, replaceUser],
+  );
   return <AccountContext.Provider value={value}>{children}</AccountContext.Provider>;
 }
 
