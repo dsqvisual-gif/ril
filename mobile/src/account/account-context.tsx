@@ -2,6 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState } 
 import { useStore } from "@/db/store-types";
 import { useSettings } from "@/theme/settings-context";
 import { isThemeId } from "@/theme/themes";
+import { clearAll } from "@/notify/notify";
 import { saveSetting } from "@/db/settings";
 import { fetchMe, type AccountUser, type Session } from "./api";
 import { readToken, writeToken } from "./storage";
@@ -104,6 +105,7 @@ export function AccountProvider({ children }: { children: React.ReactNode }) {
     await remember(null);
     // The account's tasks stay with the account, not on the phone.
     await db.clearAccount();
+    await clearAll();
   }, [remember, db]);
 
   const replaceUser = useCallback((next: AccountUser) => remember(next), [remember]);

@@ -27,6 +27,8 @@ import { TaskEditor } from "@/components/planner/TaskEditor";
 import { MonthView, WeekView } from "@/components/planner/Overview";
 import { Icon, Segmented } from "@/components/ui";
 import { UndoToast } from "@/components/UndoToast";
+import { notifyChanged } from "@/notify/notify";
+import { NotifyPrompt } from "@/notify/NotifyPrompt";
 import { radius, usePalette } from "@/theme/theme";
 
 type Notice = { key: number; text: string; undo?: () => void };
@@ -135,9 +137,13 @@ export default function PlannerScreen() {
     return () => clearInterval(t);
   }, [offline, reload]);
 
-  // Keep the phone's copy of the open day up to date after every change.
+  // Keep the phone's copy of the open day up to date after every change,
+  // and the planned notifications with it.
   useEffect(() => {
-    if (tasks && loadedFor.current === date) void writeDay(db, date, tasks);
+    if (tasks && loadedFor.current === date) {
+      void writeDay(db, date, tasks);
+      notifyChanged();
+    }
   }, [db, date, tasks]);
 
   // On each visit, as on the website: unfinished tasks from past days move to today.
@@ -402,6 +408,8 @@ export default function PlannerScreen() {
               <Text style={[styles.summary, { color: c.inkSecondary }]}>{summary(date, open.length, done.length)}</Text>
             ) : null}
           </View>
+
+          <NotifyPrompt />
 
           {offline ? (
             <View style={[styles.offline, { backgroundColor: c.tintWarn }]}>

@@ -1,5 +1,5 @@
 import { useCallback, useState } from "react";
-import { ActivityIndicator, Pressable, StyleSheet, Switch, Text, TextInput, View } from "react-native";
+import { ActivityIndicator, Linking, Pressable, StyleSheet, Switch, Text, TextInput, View } from "react-native";
 import { useFocusEffect } from "expo-router";
 import { addDays, format } from "date-fns";
 import { ru } from "date-fns/locale";
@@ -8,6 +8,9 @@ import { confirmAsk, errorText } from "@/components/dialogs";
 import { SettingsGroup, SettingsScreen } from "@/components/settings/SettingsUI";
 import { fromDateKey, toDateKey } from "@/shared/dates";
 import { radius, usePalette } from "@/theme/theme";
+import { useStore } from "@/db/store-types";
+import { Button, IconBadge } from "@/components/ui";
+import { askPermission, DEFAULT_PREFS, notifyChanged, NOTIFY_SUPPORTED, permission, readPrefs, writePrefs, type NotifyPrefs, type Permission } from "@/notify/notify";
 
 type Unit = "day" | "week" | "month" | "year";
 type Reminder = {
@@ -60,7 +63,9 @@ function every(r: Pick<Reminder, "everyCount" | "everyUnit">): string {
 export default function NotificationSettings() {
   const c = usePalette();
   const call = useRpc();
-  const [digest, setDigest] = useState<boolean | null>(null);
+  const store = useStore();
+  const [perm, setPerm] = useState<Permission | null>(null);
+  const [prefs, setPrefs] = useState<NotifyPrefs>(DEFAULT_PREFS);
   const [list, setList] = useState<Reminder[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [adding, setAdding] = useState(false);
@@ -71,14 +76,15 @@ export default function NotificationSettings() {
 
   const load = useCallback(async () => {
     try {
-      const [p, r] = await Promise.all([call<{ digestEnabled: boolean }>("account.profile"), call<Reminder[]>("reminders.list")]);
-      setDigest(p.digestEnabled);
+      const [p, saved, r] = await Promise.all([permission(), readPrefs(store), call<Reminder[]>("reminders.list")]);
+      setPerm(p);
+      setPrefs(saved);
       setList(r);
       setError(null);
     } catch (e) {
       setError(errorText(e));
     }
-  }, [call]);
+  }, [call, store]);
 
   useFocusEffect(
     useCallback(() => {
@@ -86,14 +92,11 @@ export default function NotificationSettings() {
     }, [load]),
   );
 
-  async function toggleDigest(on: boolean) {
-    setDigest(on);
-    try {
-      await call("reminders.setDigest", on);
-    } catch (e) {
-      setDigest(!on);
-      setError(errorText(e));
-    }
+  async function change(patch: Partial<NotifyPrefs>) {
+    const next = { ...prefs, ...patch };
+    setPrefs(next);
+    await writePrefs(store, next);
+    notifyChanged();
   }
 
   async function add() {
@@ -112,6 +115,7 @@ export default function NotificationSettings() {
       setTitle("");
       setAdding(false);
       setError(null);
+      notifyChanged();
     } catch (e) {
       setError(errorText(e));
     }
@@ -131,17 +135,57 @@ export default function NotificationSettings() {
   const shiftFirst = (days: number) => setFirst((d) => toDateKey(addDays(fromDateKey(d), days)));
 
   return (
-    <SettingsScreen title="Уведомления" lead="Письма приходят на почту аккаунта. Напоминания ещё и попадают в планер в нужный день.">
+    <SettingsScreen title="Уведомления" lead="Всплывающие уведомления на телефоне: о делах, о плане на день, о сроках в команде и о напоминаниях.">
       {error ? <Text style={{ color: c.danger, fontWeight: "600" }}>{error}</Text> : null}
 
-      <SettingsGroup title="Утреннее письмо">
-        <View style={styles.switchRow}>
-          <View style={{ flex: 1 }}>
-            <Text style={[styles.rowTitle, { color: c.ink }]}>Дела на день — письмом</Text>
-            <Text style={[styles.hint, { color: c.inkSecondary }]}>Каждое утро: что запланировано на сегодня</Text>
-          </View>
-          {digest === null ? <ActivityIndicator color={c.accent} /> : <Switch value={digest} onValueChange={(v) => void toggleDigest(v)} />}
+      {!NOTIFY_SUPPORTED ? (
+        <View style={[styles.state, { backgroundColor: c.tintWarn }]}>
+          <Text style={{ color: c.warnInk, lineHeight: 20 }}>
+            В браузерной версии уведомления не приходят. Они работают в приложении для Android и iPhone, которое ставится из магазина приложений.
+          </Text>
         </View>
+      ) : perm === "granted" ? (
+        <View style={[styles.state, { backgroundColor: "rgba(52,199,89,0.12)" }]}>
+          <IconBadge name="notifications" color="#2f9e44" />
+          <Text style={{ flex: 1, color: c.ink, fontWeight: "700" }}>Уведомления включены</Text>
+        </View>
+      ) : perm === "denied" ? (
+        <View style={[styles.state, { backgroundColor: c.tintDanger, flexDirection: "column", alignItems: "stretch" }]}>
+          <Text style={{ color: c.ink, lineHeight: 20 }}>Уведомления запрещены в настройках телефона. Откройте настройки и разрешите их для Uspeyka.</Text>
+          <Button title="Открыть настройки" small onPress={() => void Linking.openSettings()} />
+        </View>
+      ) : perm === "undetermined" ? (
+        <View style={[styles.state, { backgroundColor: c.accentSoft, flexDirection: "column", alignItems: "stretch" }]}>
+          <Text style={{ color: c.ink, lineHeight: 20 }}>Разрешите уведомления — телефон спросит один раз.</Text>
+          <Button title="Разрешить уведомления" onPress={() => void askPermission().then((p) => { setPerm(p); notifyChanged(); })} />
+        </View>
+      ) : (
+        <ActivityIndicator color={c.accent} />
+      )}
+
+      <SettingsGroup title="О делах">
+        <View style={styles.block}>
+          <Text style={[styles.rowTitle, { color: c.ink }]}>Дела со временем</Text>
+          <Chips
+            items={["Не напоминать", "В момент", "За 10 мин", "За 30 мин", "За час"]}
+            value={[-1, 0, 10, 30, 60].indexOf(prefs.before)}
+            onChange={(i) => void change({ before: [-1, 0, 10, 30, 60][i] })}
+          />
+        </View>
+        <View style={[styles.block, { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: c.border }]}>
+          <Text style={[styles.rowTitle, { color: c.ink }]}>План на день — утром</Text>
+          <Chips items={["Выкл.", "07:00", "08:00", "09:00", "10:00"]} value={["", "07:00", "08:00", "09:00", "10:00"].indexOf(prefs.morning)} onChange={(i) => void change({ morning: ["", "07:00", "08:00", "09:00", "10:00"][i] })} />
+        </View>
+        <View style={[styles.block, { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: c.border }]}>
+          <Text style={[styles.rowTitle, { color: c.ink }]}>Итоги дня — вечером</Text>
+          <Chips items={["Выкл.", "20:00", "21:00", "22:00"]} value={["", "20:00", "21:00", "22:00"].indexOf(prefs.evening)} onChange={(i) => void change({ evening: ["", "20:00", "21:00", "22:00"][i] })} />
+        </View>
+      </SettingsGroup>
+
+      <SettingsGroup title="Ещё">
+        <SwitchRow title="Сроки задач команды" hint="Накануне и в день дедлайна" value={prefs.team} onChange={(v) => void change({ team: v })} />
+        <SwitchRow title="Регулярные напоминания" hint="Из списка ниже" value={prefs.reminders} onChange={(v) => void change({ reminders: v })} />
+        <SwitchRow title="Прививки и визиты" hint="В режиме мамы" value={prefs.baby} onChange={(v) => void change({ baby: v })} last />
       </SettingsGroup>
 
       <SettingsGroup title="Регулярные напоминания">
@@ -181,7 +225,7 @@ export default function NotificationSettings() {
               <Step title="+" onPress={() => shiftFirst(1)} />
               <Step title="+нед" onPress={() => shiftFirst(7)} />
             </View>
-            <Text style={[styles.label, { color: c.inkSecondary }]}>Напомнить письмом</Text>
+            <Text style={[styles.label, { color: c.inkSecondary }]}>Напомнить</Text>
             <Chips items={BEFORE.map((b) => b.label)} value={before} onChange={setBefore} />
             <View style={styles.dateRow}>
               <Pressable onPress={() => void add()} style={[styles.btn, { backgroundColor: c.accent, opacity: title.trim() ? 1 : 0.5 }]}>
@@ -199,6 +243,19 @@ export default function NotificationSettings() {
         )}
       </SettingsGroup>
     </SettingsScreen>
+  );
+}
+
+function SwitchRow({ title, hint, value, onChange, last }: { title: string; hint: string; value: boolean; onChange: (v: boolean) => void; last?: boolean }) {
+  const c = usePalette();
+  return (
+    <View style={[styles.switchRow, !last && { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: c.border }]}>
+      <View style={{ flex: 1 }}>
+        <Text style={[styles.rowTitle, { color: c.ink }]}>{title}</Text>
+        <Text style={[styles.hint, { color: c.inkSecondary }]}>{hint}</Text>
+      </View>
+      <Switch value={value} onValueChange={onChange} />
+    </View>
   );
 }
 
@@ -230,6 +287,8 @@ function Step({ title, onPress }: { title: string; onPress: () => void }) {
 
 const styles = StyleSheet.create({
   switchRow: { flexDirection: "row", alignItems: "center", gap: 12, padding: 14 },
+  state: { flexDirection: "row", alignItems: "center", gap: 12, borderRadius: radius.lg, padding: 14 },
+  block: { padding: 14, gap: 10 },
   rowTitle: { fontSize: 16, fontWeight: "600" },
   hint: { fontSize: 13, marginTop: 2 },
   empty: { padding: 14, fontSize: 14, lineHeight: 20 },

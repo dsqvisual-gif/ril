@@ -3,6 +3,7 @@ import { router, Tabs } from "expo-router";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import MaterialCommunityIcons from "@expo/vector-icons/MaterialCommunityIcons";
 import { TabBar } from "@/components/TabBar";
+import { NotificationSync } from "@/notify/NotificationSync";
 import { useSettings } from "@/theme/settings-context";
 import { usePalette } from "@/theme/theme";
 
@@ -54,6 +55,8 @@ export default function TabsLayout() {
   }, [mode]);
 
   return (
+    <>
+    <NotificationSync />
     <Tabs
       // Switching the mode starts the tabs afresh, on the mode's first tab.
       key={mode}
@@ -72,5 +75,6 @@ export default function TabsLayout() {
         />
       ))}
     </Tabs>
+    </>
   );
 }

@@ -1,50 +1,20 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ActivityIndicator, Image, Pressable, RefreshControl, ScrollView, StyleSheet, Switch, Text, TextInput, View } from "react-native";
+import { ActivityIndicator, Image, Pressable, RefreshControl, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useFocusEffect } from "expo-router";
-import { differenceInCalendarDays, format } from "date-fns";
-import { ru } from "date-fns/locale";
 import { useRpc } from "@/account/use-rpc";
+import { notifyChanged } from "@/notify/notify";
 import { confirmAsk, errorText } from "@/components/dialogs";
-import { Button, DateField, Icon, Segmented, Tag } from "@/components/ui";
-import { fromDateKey, todayKey } from "@/shared/dates";
+import { Button, Icon, Segmented, Tag } from "@/components/ui";
+import { Initial } from "@/components/team/Initial";
+import { Schedule } from "@/components/team/Schedule";
+import { TaskBoard } from "@/components/team/TaskBoard";
+import { isManager, ROLE, type Member, type Role, type Run, type TeamView } from "@/components/team/types";
 import { radius, usePalette } from "@/theme/theme";
 
-type Role = "owner" | "admin" | "member";
-type Status = "todo" | "doing" | "done";
 type Summary = { id: string; name: string; role: Role; memberCount: number };
 type Invitation = { memberId: string; companyId: string; companyName: string; invitedBy: string | null };
-type Member = { id: string; userId: string; name: string; username: string | null; role: Role; status: "invited" | "active" };
-type CTask = {
-  id: string;
-  title: string;
-  note: string | null;
-  assigneeId: string | null;
-  creatorId: string;
-  startDate: string;
-  deadline: string | null;
-  status: Status;
-  important: boolean;
-};
-type TeamView = { company: { id: string; name: string }; me: { userId: string; role: Role }; members: Member[]; tasks: CTask[] };
 type Lists = { companies: Summary[]; invitations: Invitation[] };
-type Run = (task: () => Promise<unknown>) => Promise<boolean>;
-
-const STATUSES: { id: Status; label: string; color: string }[] = [
-  { id: "todo", label: "Не начато", color: "#8e8e93" },
-  { id: "doing", label: "В процессе", color: "#f08c00" },
-  { id: "done", label: "Готово", color: "#2f9e44" },
-];
-const ROLE: Record<Role, string> = { owner: "Владелец", admin: "Админ", member: "Участник" };
-const isManager = (r: Role) => r === "owner" || r === "admin";
-
-function plural(n: number, [one, few, many]: [string, string, string]) {
-  const d = n % 10;
-  const t = n % 100;
-  if (d === 1 && t !== 11) return one;
-  if (d >= 2 && d <= 4 && (t < 12 || t > 14)) return few;
-  return many;
-}
 
 /** Teams as on the website: admins hand out tasks, everyone marks how their own ones are going. */
 export default function TeamScreen() {
@@ -52,13 +22,14 @@ export default function TeamScreen() {
   const call = useRpc();
   const [lists, setLists] = useState<Lists | null>(null);
   const [view, setView] = useState<TeamView | null>(null);
-  const [tab, setTab] = useState<"tasks" | "people">("tasks");
+  const [tab, setTab] = useState<"tasks" | "schedule" | "people">("tasks");
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const openId = useRef<string | null>(null);
   useEffect(() => {
     openId.current = view?.company.id ?? null;
+    notifyChanged();
   }, [view]);
 
   const load = useCallback(async () => {
@@ -104,7 +75,7 @@ export default function TeamScreen() {
       >
         <View style={{ gap: 4 }}>
           <Text style={[styles.title, { color: c.ink }]}>Команда</Text>
-          <Text style={[styles.lead, { color: c.inkSecondary }]}>Общие задачи с исполнителем и сроком. Задачи раздают администраторы.</Text>
+          <Text style={[styles.lead, { color: c.inkSecondary }]}>Задачи команды, сроки и загрузка людей.</Text>
         </View>
 
         {error ? <Text style={[styles.error, { color: c.danger }]}>{error}</Text> : null}
@@ -165,16 +136,29 @@ export default function TeamScreen() {
 
         {view && !creating ? (
           <>
+            <View style={styles.companyHead}>
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.company, { color: c.ink }]} numberOfLines={1}>
+                  {view.company.name}
+                </Text>
+                <Text style={{ color: c.inkSecondary, fontSize: 13 }}>
+                  {view.members.filter((m) => m.status === "active").length} чел. · вы {ROLE[view.me.role].toLowerCase()}
+                </Text>
+              </View>
+            </View>
             <Segmented
               items={[
-                { id: "tasks", label: `Задачи · ${view.tasks.length}` },
+                { id: "tasks", label: "Задачи" },
+                { id: "schedule", label: "График" },
                 { id: "people", label: `Люди · ${view.members.filter((m) => m.status === "active").length}` },
               ]}
               value={tab}
               onChange={setTab}
             />
             {tab === "tasks" ? (
-              <Tasks view={view} onView={setView} run={run} />
+              <TaskBoard view={view} onView={setView} run={run} />
+            ) : tab === "schedule" ? (
+              <Schedule view={view} onView={setView} run={run} />
             ) : (
               <People
                 view={view}
@@ -216,285 +200,6 @@ function CreateTeam({ first, onCreate, onCancel }: { first: boolean; onCreate: (
         <Button title="Создать команду" onPress={() => void onCreate(name.trim()).then((ok) => ok && setName(""))} disabled={!name.trim()} full={first} style={first ? { flex: 1 } : undefined} />
         {onCancel ? <Button title="Отмена" kind="ghost" onPress={onCancel} /> : null}
       </View>
-    </View>
-  );
-}
-
-function Initial({ name, size = 26 }: { name: string; size?: number }) {
-  const c = usePalette();
-  return (
-    <View style={{ width: size, height: size, borderRadius: size / 2, backgroundColor: c.accentSoft, alignItems: "center", justifyContent: "center" }}>
-      <Text style={{ color: c.accent, fontWeight: "800", fontSize: size * 0.45 }}>{(name.trim() || "?")[0].toUpperCase()}</Text>
-    </View>
-  );
-}
-
-function dueInfo(deadline: string | null, done: boolean): { text: string; tone: "danger" | "warn" | "ok" | "muted" } | null {
-  if (!deadline) return null;
-  const date = format(fromDateKey(deadline), "d MMM", { locale: ru });
-  if (done) return { text: `до ${date}`, tone: "muted" };
-  const days = differenceInCalendarDays(fromDateKey(deadline), fromDateKey(todayKey()));
-  if (days < 0) return { text: `просрочено · ${date}`, tone: "danger" };
-  if (days === 0) return { text: "сегодня", tone: "warn" };
-  if (days === 1) return { text: "завтра", tone: "warn" };
-  if (days <= 3) return { text: `через ${days} ${plural(days, ["день", "дня", "дней"])} · ${date}`, tone: "warn" };
-  return { text: `до ${date}`, tone: "ok" };
-}
-
-function Tasks({ view, onView, run }: { view: TeamView; onView: (v: TeamView) => void; run: Run }) {
-  const c = usePalette();
-  const manager = isManager(view.me.role);
-  const [filter, setFilter] = useState<"all" | "mine">(manager ? "all" : "mine");
-  const [adding, setAdding] = useState(false);
-  const mine = view.tasks.filter((t) => t.assigneeId === view.me.userId);
-  const shown = filter === "mine" ? mine : view.tasks;
-
-  return (
-    <View style={{ gap: 14 }}>
-      {manager ? (
-        adding ? (
-          <NewTask view={view} onView={onView} run={run} onClose={() => setAdding(false)} />
-        ) : (
-          <Pressable onPress={() => setAdding(true)} style={[styles.addBar, { backgroundColor: c.surface, borderColor: c.border }]}>
-            <View style={[styles.plus, { backgroundColor: c.accent }]}>
-              <Icon name="add" color={c.onAccent} size={20} />
-            </View>
-            <Text style={{ color: c.inkSecondary, fontSize: 16 }}>Новая задача для команды</Text>
-          </Pressable>
-        )
-      ) : (
-        <View style={[styles.note, { backgroundColor: c.accentSoft }]}>
-          <Icon name="information-circle-outline" color={c.accent} size={20} />
-          <Text style={{ flex: 1, color: c.ink, fontSize: 14, lineHeight: 20 }}>
-            Задачи раздают администраторы. У своих задач отмечайте, как идёт работа.
-          </Text>
-        </View>
-      )}
-
-      <View style={styles.row}>
-        {(["mine", "all"] as const).map((f) => {
-          const on = filter === f;
-          return (
-            <Pressable key={f} onPress={() => setFilter(f)} style={[styles.filter, { backgroundColor: on ? c.ink : c.surface, borderColor: on ? c.ink : c.border }]}>
-              <Text style={{ color: on ? c.bg : c.ink, fontWeight: "700", fontSize: 14 }}>
-                {f === "mine" ? `Мои · ${mine.length}` : `Все · ${view.tasks.length}`}
-              </Text>
-            </Pressable>
-          );
-        })}
-      </View>
-
-      {shown.length === 0 ? (
-        <Text style={[styles.emptyLine, { color: c.inkSecondary }]}>
-          {filter === "mine" ? "Вам пока ничего не поручили." : manager ? "Задач пока нет — добавьте первую." : "Задач пока нет."}
-        </Text>
-      ) : null}
-
-      {STATUSES.map((st) => {
-        const items = shown.filter((t) => t.status === st.id);
-        if (items.length === 0) return null;
-        return (
-          <View key={st.id} style={{ gap: 8 }}>
-            <View style={styles.groupHead}>
-              <View style={[styles.groupDot, { backgroundColor: st.color }]} />
-              <Text style={[styles.groupTitle, { color: c.ink }]}>{st.label}</Text>
-              <Text style={{ color: c.inkTertiary, fontWeight: "700" }}>{items.length}</Text>
-            </View>
-            {items.map((t) => (
-              <TaskCard key={t.id} task={t} view={view} onView={onView} run={run} />
-            ))}
-          </View>
-        );
-      })}
-    </View>
-  );
-}
-
-function PeoplePicker({ view, value, onChange }: { view: TeamView; value: string | null; onChange: (id: string | null) => void }) {
-  const c = usePalette();
-  const people = view.members.filter((m) => m.status === "active");
-  return (
-    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chips}>
-      {people.map((m) => {
-        const on = m.userId === value;
-        return (
-          <Pressable
-            key={m.userId}
-            onPress={() => onChange(on ? null : m.userId)}
-            style={[styles.person, { backgroundColor: on ? c.accentSoft : c.surfaceMuted, borderColor: on ? c.accent : c.border }]}
-          >
-            <Initial name={m.name} size={22} />
-            <Text style={{ color: on ? c.accent : c.ink, fontWeight: "700", fontSize: 14 }}>
-              {m.userId === view.me.userId ? `${m.name.split(" ")[0]} (я)` : m.name.split(" ")[0]}
-            </Text>
-          </Pressable>
-        );
-      })}
-    </ScrollView>
-  );
-}
-
-function NewTask({ view, onView, run, onClose }: { view: TeamView; onView: (v: TeamView) => void; run: Run; onClose: () => void }) {
-  const c = usePalette();
-  const call = useRpc();
-  const [title, setTitle] = useState("");
-  const [assignee, setAssignee] = useState<string | null>(null);
-  const [deadline, setDeadline] = useState<string | null>(null);
-  const [note, setNote] = useState("");
-  const [important, setImportant] = useState(false);
-  const [busy, setBusy] = useState(false);
-
-  async function add() {
-    if (!title.trim()) return;
-    setBusy(true);
-    const ok = await run(async () =>
-      onView(
-        await call<TeamView>("company.createTask", view.company.id, {
-          title: title.trim(),
-          note: note.trim() || null,
-          assigneeId: assignee,
-          startDate: todayKey(),
-          deadline,
-          important,
-        }),
-      ),
-    );
-    setBusy(false);
-    if (ok) onClose();
-  }
-
-  return (
-    <View style={[styles.card, { backgroundColor: c.surface, borderColor: c.border }]}>
-      <TextInput
-        value={title}
-        onChangeText={setTitle}
-        placeholder="Что нужно сделать"
-        placeholderTextColor={c.inkTertiary}
-        maxLength={140}
-        autoFocus
-        style={[styles.input, { color: c.ink, borderColor: c.border, backgroundColor: c.surfaceMuted }]}
-      />
-      <Text style={[styles.label, { color: c.inkSecondary }]}>Исполнитель</Text>
-      <PeoplePicker view={view} value={assignee} onChange={setAssignee} />
-      <Text style={[styles.label, { color: c.inkSecondary }]}>Срок</Text>
-      <DateField value={deadline} onChange={setDeadline} min={todayKey()} />
-      <TextInput
-        value={note}
-        onChangeText={setNote}
-        placeholder="Подробности (необязательно)"
-        placeholderTextColor={c.inkTertiary}
-        maxLength={1000}
-        multiline
-        style={[styles.input, styles.multiline, { color: c.ink, borderColor: c.border, backgroundColor: c.surfaceMuted }]}
-      />
-      <View style={styles.switchRow}>
-        <Text style={{ color: c.ink, fontSize: 15, fontWeight: "600" }}>Важная задача</Text>
-        <Switch value={important} onValueChange={setImportant} />
-      </View>
-      <View style={styles.row}>
-        <Button title="Добавить задачу" onPress={() => void add()} disabled={!title.trim()} busy={busy} style={{ flex: 1 }} />
-        <Button title="Отмена" kind="ghost" onPress={onClose} />
-      </View>
-    </View>
-  );
-}
-
-function TaskCard({ task, view, onView, run }: { task: CTask; view: TeamView; onView: (v: TeamView) => void; run: Run }) {
-  const c = usePalette();
-  const call = useRpc();
-  const [open, setOpen] = useState(false);
-  const manager = isManager(view.me.role);
-  const canMove = manager || task.assigneeId === view.me.userId;
-  const who = view.members.find((m) => m.userId === task.assigneeId);
-  const due = dueInfo(task.deadline, task.status === "done");
-  const done = task.status === "done";
-  const patch = (p: Partial<CTask>) => void run(async () => onView(await call<TeamView>("company.updateTask", task.id, p)));
-  const [note, setNote] = useState(task.note ?? "");
-  const tappable = manager || Boolean(task.note);
-
-  return (
-    <View style={[styles.task, { backgroundColor: c.surface, borderColor: task.important && !done ? "#f0b429" : c.border }]}>
-      <Pressable disabled={!tappable} onPress={() => setOpen((v) => !v)} style={styles.taskMain}>
-        <View style={styles.row}>
-          <Text style={[styles.taskTitle, { color: done ? c.inkTertiary : c.ink }, done && styles.struck]}>{task.title}</Text>
-          {tappable ? <Icon name={open ? "chevron-up" : "chevron-down"} color={c.inkTertiary} size={16} /> : null}
-        </View>
-        {task.important || due ? (
-          <View style={styles.tags}>
-            {task.important ? <Tag tone="warn" text="Важно" /> : null}
-            {due ? <Tag tone={due.tone} text={due.text} /> : null}
-          </View>
-        ) : null}
-        <View style={styles.row}>
-          {who ? <Initial name={who.name} /> : <Icon name="person-outline" color={c.inkTertiary} size={18} />}
-          <Text style={{ color: who ? c.ink : c.inkTertiary, fontSize: 14 }}>
-            {who ? (who.userId === view.me.userId ? `${who.name} (я)` : who.name) : "Без исполнителя"}
-          </Text>
-        </View>
-      </Pressable>
-
-      {canMove ? (
-        <View style={[styles.statusBar, { borderTopColor: c.border }]}>
-          {STATUSES.map((st) => {
-            const on = task.status === st.id;
-            return (
-              <Pressable
-                key={st.id}
-                disabled={on}
-                onPress={() => patch({ status: st.id })}
-                accessibilityRole="radio"
-                accessibilityState={{ checked: on }}
-                style={[styles.statusItem, on && { backgroundColor: `${st.color}1f` }]}
-              >
-                {on ? <Icon name="checkmark" color={st.color} size={14} /> : null}
-                <Text style={{ color: on ? st.color : c.inkSecondary, fontWeight: on ? "800" : "600", fontSize: 13 }}>{st.label}</Text>
-              </Pressable>
-            );
-          })}
-        </View>
-      ) : (
-        <View style={[styles.statusBar, { borderTopColor: c.border, justifyContent: "flex-start", paddingHorizontal: 14 }]}>
-          <View style={[styles.groupDot, { backgroundColor: STATUSES.find((s) => s.id === task.status)!.color }]} />
-          <Text style={{ color: c.inkSecondary, fontSize: 13, fontWeight: "600" }}>{STATUSES.find((s) => s.id === task.status)!.label}</Text>
-        </View>
-      )}
-
-      {open ? (
-        <View style={[styles.details, { borderTopColor: c.border }]}>
-          {!manager && task.note ? <Text style={{ color: c.ink, fontSize: 14, lineHeight: 20 }}>{task.note}</Text> : null}
-          {manager ? (
-            <>
-              <Text style={[styles.label, { color: c.inkSecondary }]}>Исполнитель</Text>
-              <PeoplePicker view={view} value={task.assigneeId} onChange={(id) => patch({ assigneeId: id })} />
-              <Text style={[styles.label, { color: c.inkSecondary }]}>Срок</Text>
-              <DateField value={task.deadline} onChange={(d) => patch({ deadline: d })} />
-              <TextInput
-                value={note}
-                onChangeText={setNote}
-                onBlur={() => note !== (task.note ?? "") && patch({ note: note.trim() || null })}
-                placeholder="Подробности"
-                placeholderTextColor={c.inkTertiary}
-                multiline
-                style={[styles.input, styles.multiline, { color: c.ink, borderColor: c.border, backgroundColor: c.surfaceMuted }]}
-              />
-              <View style={styles.switchRow}>
-                <Text style={{ color: c.ink, fontSize: 15, fontWeight: "600" }}>Важная задача</Text>
-                <Switch value={task.important} onValueChange={(v) => patch({ important: v })} />
-              </View>
-              <Pressable
-                onPress={() =>
-                  confirmAsk(`Удалить задачу «${task.title}»?`, undefined, "Удалить", () =>
-                    void run(async () => onView(await call<TeamView>("company.deleteTask", task.id))),
-                  )
-                }
-                hitSlop={6}
-              >
-                <Text style={[styles.dangerLink, { color: c.danger }]}>Удалить задачу</Text>
-              </Pressable>
-            </>
-          ) : null}
-        </View>
-      ) : null}
     </View>
   );
 }
@@ -574,7 +279,7 @@ function People({ view, onView, run, onGone }: { view: TeamView; onView: (v: Tea
           const acts = actions(m);
           return (
             <View key={m.id} style={[styles.member, i < sorted.length - 1 && { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: c.border }]}>
-              <Initial name={m.name} size={38} />
+              <Initial name={m.name} id={m.userId} size={38} />
               <View style={{ flex: 1, gap: 3 }}>
                 <Text style={[styles.memberName, { color: c.ink }]}>
                   {m.name}
@@ -691,6 +396,8 @@ const styles = StyleSheet.create({
   plus: { width: 36, height: 36, borderRadius: 18, alignItems: "center", justifyContent: "center" },
   note: { flexDirection: "row", gap: 10, alignItems: "flex-start", borderRadius: radius.md, padding: 12 },
   filter: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: radius.pill, borderWidth: 1 },
+  companyHead: { flexDirection: "row", alignItems: "center", gap: 10 },
+  company: { fontSize: 22, fontWeight: "800", letterSpacing: -0.3 },
   emptyLine: { fontSize: 14, textAlign: "center", paddingVertical: 10 },
   groupHead: { flexDirection: "row", alignItems: "center", gap: 8, paddingLeft: 2 },
   groupDot: { width: 9, height: 9, borderRadius: 5 },
